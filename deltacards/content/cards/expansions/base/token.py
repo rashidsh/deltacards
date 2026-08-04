@@ -175,18 +175,13 @@ class BrokenPillar(Monster):
 
 @card(536)
 class Dream(Spell):
-    first_draw_result: Var[StepResult] = Var(StepResult)
+    targets = HAND
 
     magic = (
-        YOU.choose(HAND).to(
-            CHOICE_SELECTED.buff(cost=-1)
-            >> CHOICE_SELECTED.to_deck()
-        )
-        >> YOU.draw_next().store_result(first_draw_result).to(
-            YOU.draw(
-                (DECK & (TEMPLATE_ID != RESOLVE_ENTITY(first_draw_result.card_id).template_id)).first()
-            )
-        )
+        TARGET.buff(cost=-1)
+        >> TARGET.to_deck()
+        >> YOU.draw((DECK & ~TARGET).first())
+        >> YOU.draw((DECK & ~TARGET).first())
     )
 
 
