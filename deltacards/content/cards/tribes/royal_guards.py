@@ -115,7 +115,7 @@ class CasualGuard1(Monster):
 @card(743)
 class CasualGuard2(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.HAND) or self.silenced:
+        if self.zone is not CardZone.HAND:
             return
 
         def played_high_cost_card_this_turn() -> bool:

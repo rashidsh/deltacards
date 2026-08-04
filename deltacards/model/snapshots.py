@@ -43,6 +43,10 @@ class CardSnapshot(EntitySnapshot):
     def is_generated(self) -> bool:
         return self.creator_id is not None
 
+    @property
+    def silenced(self) -> bool:
+        return False
+
     def has_keyword(self, keyword: CardKeyword) -> bool:
         return keyword in self.keywords
 
@@ -65,6 +69,10 @@ class MonsterSnapshot(CardSnapshot):
     attack: int
     hp: int
     max_hp: int
+
+    @property
+    def silenced(self) -> bool:
+        return self.has_keyword(CardKeyword.SILENCED)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

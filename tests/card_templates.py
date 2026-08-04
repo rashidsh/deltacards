@@ -53,6 +53,7 @@ def synthetic_card(
         common = dict(
             id=template_id,
             name=name or class_.__name__,
+            image=name,
             rarity=rarity,
             cost=cost,
             abilities=frozenset(
@@ -102,6 +103,7 @@ add_test_template(
     MonsterTemplate(
         id=1,
         name="Dummy",
+        image="Dummy",
         rarity=CardRarity.BASE,
         cost=1,
         abilities=frozenset(),

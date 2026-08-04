@@ -175,6 +175,10 @@ class Card(Entity, Generic[TTemplate]):
         return self.creator_id is not None
 
     @property
+    def silenced(self) -> bool:
+        return False
+
+    @property
     def zone(self) -> CardZone:
         return self._zone
 

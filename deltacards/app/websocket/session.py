@@ -373,18 +373,6 @@ class WebSocketSession:
             )
 
         options = request.prompt.options
-
-        if any(
-            isinstance(option, Card)
-            and option.zone is CardZone.HAND
-            and option.controller_id is not self.player_id
-            for option in options
-        ):
-            raise UnsupportedFrontendRequestError(
-                "An opponent's private Hand Card cannot be exposed "
-                "as a frontend choice"
-            )
-
         if not options:
             raise UnsupportedFrontendRequestError(
                 "Choice request contains no options"
@@ -529,6 +517,34 @@ class WebSocketSession:
             step_listener=capture,
         )
         return update, capture
+
+    @staticmethod
+    def _play_committed(update: EngineUpdate, card_id: int) -> bool:
+        """
+        Return whether this update committed a manually played card.
+
+        CardPlayedResult, MonsterSummonedResult, and SpellCastResult are
+        canonically emitted later by EmitPlayResults. The action-log display
+        results instead describe the successful Summon or Cast immediately,
+        before Magic can create another choice request.
+        """
+        for record in update.log_records:
+            for result in record.display_results:
+                if (
+                    isinstance(result, MonsterSummonedResult)
+                    and result.monster_id == card_id
+                    and result.is_played
+                ):
+                    return True
+
+                if (
+                    isinstance(result, SpellCastResult)
+                    and result.card_id == card_id
+                    and result.is_played
+                ):
+                    return True
+
+        return False
 
     async def _emit_update(
         self,
@@ -689,12 +705,7 @@ class WebSocketSession:
         update, capture = self._advance_with_capture()
         pending = self._current_request()
 
-        was_played = any(
-            isinstance(result, MonsterSummonedResult)
-            and result.monster_id == card_id
-            and result.is_played
-            for result in update.results
-        )
+        was_played = self._play_committed(update, card_id)
 
         if (
             isinstance(pending, PendingChoiceRequest)
@@ -753,12 +764,7 @@ class WebSocketSession:
         update, capture = self._advance_with_capture()
         pending = self._current_request()
 
-        was_played = any(
-            isinstance(result, SpellCastResult)
-            and result.card_id == card_id
-            and result.is_played
-            for result in update.results
-        )
+        was_played = self._play_committed(update, card_id)
 
         if (
             isinstance(pending, PendingChoiceRequest)

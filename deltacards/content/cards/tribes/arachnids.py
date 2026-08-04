@@ -16,7 +16,6 @@ class Muffet(Monster):
     turn_end = GENERATE_CARD("Spider Donut").to_hand()
 
 
-
 @card(103)
 class MuffetsPet(Monster):
     targets = ENEMY_MONSTERS
@@ -36,6 +35,11 @@ class SpiderReporter(Monster):
 
 @card(474)
 class SpiderSign(Monster):
+    _effect = (DECK & TOKEN & ARACHNID).first().summon()
+
+    magic = _effect
+    turn_start = _effect
+
     @on_event(MonsterSummonedResult)
     def on_monster_summoned(self, res: MonsterSummonedResult, game, **kwargs):
         if res.monster.controller_id != self.controller_id:
@@ -45,11 +49,6 @@ class SpiderSign(Monster):
             return None
 
         return SELF.buff(attack=+1)
-
-    _effect = (DECK & TOKEN & ARACHNID).first().summon()
-
-    magic = _effect
-    turn_start = _effect
 
 
 @card(475)
@@ -62,7 +61,6 @@ class SpiderDonut(Monster):
 @card(476)
 class SpiderCroissant(Monster):
     dust = GENERATE_CARD("Spider").summon()
-
 
 
 @card(478)

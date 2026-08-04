@@ -14,6 +14,7 @@ from deltacards.actions.base import (
 from deltacards.actions.results import (
     ActionResult,
     AttackResolvedResult,
+    CardPlayedResult,
     DodgeConsumedResult,
     EntityDamagedResult,
     MonsterSummonedResult,
@@ -80,7 +81,6 @@ class PendingAction:
     env: dict[str, Any] = field(default_factory=dict)  # used for `TARGET`, `KILLER` etc.
     ctx: ActionContext | None = None  # stores variables and pause/resume context
 
-    pre_handlers_done: bool = False
     send_value: Any | None = None
     step_group_id: int | None = None
 
@@ -787,14 +787,20 @@ class Game:
         return True, 'ok'
 
     def _iter_event_sources_of_player(self, player: Player, board_only: bool = False):
-        yield from player.board.cards
+        for card in player.board.cards:
+            if not card.silenced:
+                yield card
 
         if board_only:
             return
 
         yield from self.active_enchantments(player)
+
         yield player.soul
-        yield from [artifact for artifact in player.artifacts if artifact.active]
+
+        for artifact in player.artifacts:
+            if artifact.active:
+                yield artifact
 
     def _iter_game_start_sources_of_player(self, player: Player):
         yield from self._iter_event_sources_of_player(player)
@@ -806,18 +812,6 @@ class Game:
         for player in (self.turn_player, self.turn_player.opponent):
             yield from self._iter_event_sources_of_player(player)
 
-    def _collect_event_handlers(self, pre: bool, action: Action, resolved_args: dict[str, Any]) -> list[tuple[Entity, Action]]:
-        actions = []
-        for entity in self._iter_event_sources():
-            event_handlers = entity.pre_event_handlers if pre else entity.post_event_handlers
-            for action_class, event_handler in event_handlers.items():
-                if isinstance(action, action_class):
-                    actions_to_append = event_handler(entity, action, resolved_args)
-                    if actions_to_append is not None:
-                        actions.append((entity, actions_to_append))
-
-        return actions
-
     def _collect_result_handlers(self, res: ActionResult) -> list[tuple[Entity, Action]]:
         actions = []
         event_sources = list(self._iter_event_sources())
@@ -825,16 +819,19 @@ class Game:
         if isinstance(res, AttackResolvedResult):
             # Attacker and defender should be able to handle `AttackResolvedResult` even if they left the board
             attacker = self.entity(res.attacker_id)
-            if attacker not in event_sources:
+            if (not res.attacker.silenced) and (attacker not in event_sources):
                 event_sources.append(attacker)
 
             defender = self.entity(res.defender_id)
-            if defender not in event_sources:
+            if (isinstance(defender, Player) or not res.defender.silenced) and (defender not in event_sources):
                 event_sources.append(defender)
 
         for entity in event_sources:
-            # Monster shouldn't receive `MonsterSummonedResult` event on its own summon
-            if isinstance(res, MonsterSummonedResult) and entity.id == res.monster_id:
+            # Monster shouldn't receive `MonsterSummonedResult` and `CardPlayedResult` events on its own summon
+            if (
+                (isinstance(res, MonsterSummonedResult) and entity.id == res.monster_id)
+                or (isinstance(res, CardPlayedResult) and entity.id == res.card_id)
+            ):
                 continue
 
             event_handlers = entity.post_event_handlers
@@ -1011,7 +1008,6 @@ class Game:
             kwargs=step_kwargs,
             env=base_pending.env.copy(),
             ctx=ctx,
-            pre_handlers_done=True,
             send_value=None,
 
             # Preserve parent group if this generator/effect is itself being
@@ -1045,7 +1041,6 @@ class Game:
                 kwargs=step_kwargs,
                 env=base_pending.env.copy(),
                 ctx=ctx,
-                pre_handlers_done=False,
                 send_value=None,
                 step_group_id=group_id,
                 log_group_id=base_pending.log_group_id,
@@ -1135,7 +1130,6 @@ class Game:
                     kwargs=new_kwargs,
                     env=pending.env,
                     ctx=ctx,
-                    pre_handlers_done=pending.pre_handlers_done,
                     send_value=None,
                     step_group_id=pending.step_group_id,
                     log_group_id=pending.log_group_id,
@@ -1318,35 +1312,6 @@ class Game:
             self._finish_step_action(pending, success=False, results=())
             return []
 
-        # Run handlers that should run right before the atomic action resolves (e.g. "before this attacks, do ...").
-        if not pending.pre_handlers_done:
-            pre_handlers = self._collect_event_handlers(pre=True, action=action, resolved_args=resolved_args)
-            if pre_handlers:
-                # Requeue the original action.
-                self.resolution_stack.append(
-                    PendingAction(
-                        action=action,
-                        source=pending.source,
-                        kwargs=pending.kwargs.copy(),
-                        env=pending.env.copy(),
-                        ctx=ctx,
-                        pre_handlers_done=True,
-                        send_value=None,
-                        step_group_id=pending.step_group_id,
-                    )
-                )
-
-                # Enqueue pre-triggers in reverse (so they resolve in correct order).
-                for entity, effect in reversed(pre_handlers):
-                    self.enqueue_actions(
-                        effect,
-                        source=entity,
-                        ctx=None,  # independent effect
-                        env=pending.env.copy(),
-                    )
-
-                return []
-
         if pending.log_group_id is None:
             pending.log_group_id = self.alloc_action_log_group_id()
 
@@ -1366,6 +1331,11 @@ class Game:
                 depth=pending.log_depth,
                 source_id=pending.source.id,
                 affected_ids=tuple(entity.id for entity in (res.affected or ())),
+                presentation_results=(
+                    tuple(res.presentation_results)
+                    if res.presentation_results is not None
+                    else None
+                ),
             )
         )
 

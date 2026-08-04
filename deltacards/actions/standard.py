@@ -29,6 +29,7 @@ from deltacards.model.enums import (
     CardToggleableAbility,
     DamageKind,
     KillCause,
+    PlayerId,
     Tribe,
 )
 from deltacards.model.player import Player
@@ -62,7 +63,7 @@ __all__ = (
     'SetPlayerHP',
     'SetStats', 'SetBaseStats', 'SwapStats', 'HalveStats',
     'Move', 'SwapCards',
-    'Summon', 'Play', 'Cast', 'RemoveCardFromStack',
+    'Summon', 'Play', 'Cast', 'RemoveCardFromStack', 'EmitPlayResults',
     'TriggerAbility', 'ToggleAbility',
     'Catch', 'ReleaseCaughtCard',
     'Erase', 'TransformCard',
@@ -446,7 +447,6 @@ def perform_card_draw(player: 'Player', card: 'Card', reason: str, *, ctx: 'Acti
         affected=[card],
         action_calls=action_calls,
     )
-
 
 
 class Draw(Action):
@@ -915,6 +915,63 @@ class SwapCards(Action):
         )
 
 
+def _create_play_results(
+    source_id: PlayerId | int,
+    card: Card,
+    player: Player,
+    target: Entity | None,
+    is_played: bool,
+    has_need_condition: bool,
+    need_fulfilled: bool,
+) -> tuple[ActionResult, ...]:
+    card_snapshot = card.to_snapshot()
+    target_snapshot = (
+        target.to_snapshot()
+        if target is not None
+        else None
+    )
+
+    results: list[ActionResult] = []
+
+    if is_played:
+        results.append(
+            CardPlayedResult(
+                source_id=source_id,
+                player_id=player.id,
+                card_id=card.id,
+                card=card_snapshot,
+                has_need_condition=has_need_condition,
+                need_fulfilled=need_fulfilled,
+            )
+        )
+
+    if isinstance(card, Monster):
+        results.append(
+            MonsterSummonedResult(
+                source_id=source_id,
+                player_id=player.id,
+                monster_id=card.id,
+                monster=card_snapshot,
+                target=target_snapshot,
+                is_played=is_played,
+            )
+        )
+
+    elif isinstance(card, Spell):
+        results.append(
+            SpellCastResult(
+                source_id=source_id,
+                player_id=player.id,
+                card_id=card.id,
+                card=card_snapshot,
+                target=target_snapshot,
+                is_played=is_played,
+            )
+        )
+
+    return tuple(results)
+
+
 class Summon(Action):
     card: Arg['Monster'] = Arg(many=True)
     controller: Arg['Player'] = Arg()
@@ -924,6 +981,7 @@ class Summon(Action):
     is_played: Arg[bool] = Arg(default=False)
     has_need_condition: Arg[bool] = Arg(default=False)
     need_fulfilled: Arg[bool] = Arg(default=False)
+    emit_results: Arg[bool] = Arg(default=True)
 
     def execute(
         self,
@@ -935,6 +993,7 @@ class Summon(Action):
         is_played: bool,
         has_need_condition: bool,
         need_fulfilled: bool,
+        emit_results: bool,
         *,
         ctx: ActionContext,
         **kwargs,
@@ -957,32 +1016,20 @@ class Summon(Action):
 
         ctx.game.move_card(card, controller.id, CardZone.BOARD, pos=pos)
 
-        extra_results = []
-        if is_played:
-            extra_results = [
-                CardPlayedResult(
-                    source_id=ctx.source.id,
-                    player_id=controller.id,
-                    card_id=card.id,
-                    card=card.to_snapshot(),
-                    has_need_condition=has_need_condition,
-                    need_fulfilled=need_fulfilled,
-                ),
-            ]
+        play_results = _create_play_results(
+            source_id=ctx.source.id,
+            card=card,
+            player=controller,
+            target=ctx.env.get('magic_effect_target'),
+            is_played=is_played,
+            has_need_condition=has_need_condition,
+            need_fulfilled=need_fulfilled,
+        )
 
         return ActionOutcome(
             success=True,
-            results=(
-                *extra_results,
-                MonsterSummonedResult(
-                    source_id=ctx.source.id,
-                    player_id=controller.id,
-                    monster_id=card.id,
-                    monster=card.to_snapshot(),
-                    target=ctx.env['magic_effect_target'].to_snapshot() if ctx.env.get('magic_effect_target', None) is not None else None,
-                    is_played=is_played,
-                ),
-            ),
+            results=play_results if emit_results else (),
+            presentation_results= None if emit_results else play_results,
             affected=[card],
         )
 
@@ -1159,12 +1206,24 @@ class Play(Action):
                             is_played=True,
                             has_need_condition=has_need_condition,
                             need_fulfilled=need_fulfilled,
+                            emit_results=False,
                         ),
                         source=player,
                         env={'magic_effect_target': target},  # used only for result logging
                     ),
                     *magic_calls,
                     *synergy_calls,
+                    ActionCall(
+                        EmitPlayResults(
+                            card=card,
+                            player=player,
+                            target=target,
+                            is_played=True,
+                            has_need_condition=has_need_condition,
+                            need_fulfilled=need_fulfilled,
+                        ),
+                        source=player,
+                    ),
                 ],
             )
 
@@ -1178,7 +1237,7 @@ class Play(Action):
                         ActionCall(
                             TriggerAbility(target=source, ability=Ability.SHOCK),
                             source=source,
-                            env={'trigger_card': card},
+                            env={'trigger_card': card, 'target': target},
                         )
                     )
 
@@ -1253,6 +1312,16 @@ class Cast(Action):
 
         ctx.game.move_card(card, controller.id, CardZone.STACK)
 
+        play_presentation_results = _create_play_results(
+            source_id=ctx.source.id,
+            card=card,
+            player=controller,
+            target=effect_target,
+            is_played=is_played,
+            has_need_condition=has_need_condition,
+            need_fulfilled=need_fulfilled,
+        )
+
         magic_calls = []
         need_blocks_magic = (
             is_played
@@ -1271,36 +1340,24 @@ class Cast(Action):
                     )
                 )
 
-        extra_results = []
-        if is_played:
-            extra_results = [
-                CardPlayedResult(
-                    source_id=ctx.source.id,
-                    player_id=controller.id,
-                    card_id=card.id,
-                    card=card.to_snapshot(),
-                    has_need_condition=has_need_condition,
-                    need_fulfilled=need_fulfilled,
-                ),
-            ]
-
         return ActionOutcome(
             success=True,
-            results=(
-                *extra_results,
-                SpellCastResult(
-                    source_id=ctx.source.id,
-                    player_id=controller.id,
-                    card_id=card.id,
-                    card=card.to_snapshot(),
-                    target=effect_target.to_snapshot() if effect_target is not None else None,
-                    is_played=is_played,
-                )
-            ),
             affected=[card],
+            presentation_results=play_presentation_results,
             action_calls=[
                 *magic_calls,
                 ActionCall(RemoveCardFromStack(card=card), source=card),
+                ActionCall(
+                    EmitPlayResults(
+                        card=card,
+                        player=controller,
+                        target=effect_target,
+                        is_played=is_played,
+                        has_need_condition=has_need_condition,
+                        need_fulfilled=need_fulfilled,
+                    ),
+                    source=ctx.source,
+                ),
             ],
         )
 
@@ -1312,6 +1369,44 @@ class RemoveCardFromStack(Action):
         assert card.zone is CardZone.STACK, f"Card is not on stack: {card.zone}"
         ctx.game.move_card(card, card.controller_id, CardZone.INVALID)
         return ActionOutcome(success=True, affected=[card])
+
+
+class EmitPlayResults(Action):
+    card: Arg['Card'] = Arg()
+    player: Arg['Player'] = Arg()
+    target: Arg[Entity | None] = Arg(default=None)
+    is_played: Arg[bool] = Arg(default=False)
+    has_need_condition: Arg[bool] = Arg(default=False)
+    need_fulfilled: Arg[bool] = Arg(default=False)
+
+    def execute(
+        self,
+        card: Card,
+        player: Player,
+        target: Entity | None,
+        is_played: bool,
+        has_need_condition: bool,
+        need_fulfilled: bool,
+        *,
+        ctx: ActionContext,
+        **kwargs,
+    ):
+        results = _create_play_results(
+            source_id=ctx.source.id,
+            card=card,
+            player=player,
+            target=target,
+            is_played=is_played,
+            has_need_condition=has_need_condition,
+            need_fulfilled=need_fulfilled,
+        )
+
+        return ActionOutcome(
+            success=True,
+            results=results,
+            presentation_results=(),
+            affected=[card],
+        )
 
 
 class TriggerAbility(Action):
@@ -1523,7 +1618,10 @@ class CombatDamage(Action):
                 'damage_to_defender': res.damage,
                 'attacker_dead': False,
                 'defender_dead': res.killed,
+                'attacker_snapshot': attacker.to_snapshot(),
+                'defender_snapshot': defender.to_snapshot(),
             })
+
             return ActionOutcome(
                 success=True,
                 results=res.results,
@@ -1557,7 +1655,10 @@ class CombatDamage(Action):
             'damage_to_defender': attacker_res.damage,
             'attacker_dead': defender_res.killed,
             'defender_dead': attacker_res.killed,
+            'attacker_snapshot': attacker.to_snapshot(),
+            'defender_snapshot': defender.to_snapshot(),
         })
+
         return ActionOutcome(
             success=True,
             results=[*attacker_res.results, *defender_res.results],
@@ -1587,9 +1688,9 @@ class AttackAftermath(Action):
                 AttackResolvedResult(
                     source_id=ctx.source.id,
                     attacker_id=attacker.id,
-                    attacker=attacker.to_snapshot(),
+                    attacker=ctx.env['combat_result']['attacker_snapshot'],
                     defender_id=defender.id,
-                    defender=defender.to_snapshot(),
+                    defender=ctx.env['combat_result']['defender_snapshot'],
                     damage_to_attacker=ctx.env['combat_result']['damage_to_attacker'],
                     damage_to_defender=ctx.env['combat_result']['damage_to_defender'],
                     attacker_dead=ctx.env['combat_result']['attacker_dead'],
@@ -1857,7 +1958,6 @@ class RemoveEnchantment(Action):
                 ),
             ),
         )
-
 
 
 class TransformEnchantment(Action):

@@ -123,7 +123,7 @@ class LastDream(Spell):
         ALLY_MONSTERS.buff(attack=+1, hp=+1)
         >> Check(YOU.hp == 1).to(
             ENEMY_MONSTERS.kill()
-            >> YOU.heal(YOU.max_hp - YOU.hp)
+            >> YOU.heal(YOU.max_hp)
         )
     )
 

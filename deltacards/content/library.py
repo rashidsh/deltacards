@@ -44,6 +44,7 @@ class CardLibrary:
         common = dict(
             id=card_id,
             name=d['name'],
+            image=d['image'],
             rarity=CardRarity[d['rarity']],
             cost=d['cost'],
             abilities=frozenset(Ability[ability_name] for ability_name in d['abilities']),

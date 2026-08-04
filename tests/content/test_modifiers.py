@@ -13,7 +13,7 @@ from ..rig import TestRig
 class PixelKris(Monster):
     # Has +1 ATK for each missing HP.
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(
@@ -58,7 +58,7 @@ def test_card_pixelkris():
 class Trashy(Monster):
     # This has +2 ATK on the enemy turn and takes no DMG while attacking.
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(
@@ -116,7 +116,7 @@ def test_card_trashy():
 class LaggyTV(Monster):
     # Monsters in your hand have +1 COST. Whenever you play a monster, give it +1/+2.
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         def applies(q: CostQuery) -> bool:
@@ -186,7 +186,7 @@ def test_card_laggytv():
 class DiamondBoy1(Monster):
     # All other non-Armor ally monsters take 1 less DMG (can't stack).
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         def applies(q: DamageQuery) -> bool:

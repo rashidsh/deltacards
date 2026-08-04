@@ -1308,6 +1308,7 @@ class FrontendAdapter:
         if isinstance(result, CardRevealedResult):
             events.append({
                 'action': 'getShowCard',
+                'idPlayer': result.card.controller_id.value,
                 'card': json_text(self.views.card_view(result.card)),
                 'waitTime': self.config.presentation.wait_time('SHOW_CARD_WAIT'),
             })
@@ -1374,6 +1375,7 @@ class FrontendAdapter:
             else:
                 events.append({
                     'action': 'getShowCard',
+                    'idPlayer': result.player_id.value,
                     'card': json_text(self.views.card_view(result.card)),
                     'waitTime': self.config.presentation.wait_time('SHOW_CARD_WAIT'),
                 })
@@ -1651,6 +1653,11 @@ class FrontendAdapter:
         }
 
         for record in records:
+            seen_results.update(
+                id(result)
+                for result in record.results
+            )
+
             if record.action_name == 'PlayerEndTurnAction':
                 if record.source_id in self.game.players:
                     events.append({
@@ -1672,9 +1679,7 @@ class FrontendAdapter:
                         'turnTime': 0,
                     })
 
-            for result in record.results:
-                seen_results.add(id(result))
-
+            for result in record.display_results:
                 if (
                     isinstance(result, CardRevealedResult)
                     and result.card.id in overdrawn_card_ids

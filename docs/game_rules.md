@@ -253,9 +253,11 @@ A played Monster:
 2. may create a Loop copy;
 3. is summoned to the board;
 4. resolves its Magic effect, if available;
-5. resolves its Synergy effect, if its Synergy condition was met.
+5. resolves its Synergy effect, if its Synergy condition was met;
+6. counts as played and summoned, causing applicable reactions to resolve.
 
-Reactions to the Monster being played or summoned happen after it has entered the board but before its Magic and Synergy effects.
+Reactions to a Monster being played or summoned happen after its Magic and
+Synergy effects resolve. The Monster is already on the board while they resolve.
 
 If a Monster has a targeted Magic effect but there are no legal targets, the Monster may still be played.
 Its targeted Magic and its Synergy effects are skipped.
@@ -272,12 +274,12 @@ A played Spell:
 1. has its gold cost paid;
 2. may create a Loop copy;
 3. moves to the Stack;
-4. counts as played and cast;
-5. resolves its Magic effect;
-6. leaves the Stack;
+4. resolves its Magic effect;
+5. leaves the Stack;
+6. counts as played and cast, causing applicable reactions to resolve;
 7. causes eligible Shock effects to trigger if its base cost is at least 2.
 
-Reactions to the Spell being played or cast happen while it is on the Stack and before its Magic resolves.
+Reactions to a Spell being played or cast happen after its Magic resolves and after it leaves the Stack.
 
 If an effect casts a Spell rather than a player manually playing it:
 - it does not count as a manually played Spell;
@@ -510,11 +512,11 @@ If effect text says "release a card" but doesn't specify controller of the newly
 
 ## Ordering of reactions and multi-target effects
 When several entities react to the same event, sources are ordered as follows:
-1. the current turn player's Monsters, from left to right;
+1. the current turn player's non-Silenced Monsters, from left to right;
 2. the current turn player's Enchantments, from left to right;
 3. the current turn player's Soul;
 4. the current turn player's enabled Artifacts, in equip order;
-5. the other player's Monsters, from left to right;
+5. the other player's non-Silenced Monsters, from left to right;
 6. the other player's Enchantments, from left to right;
 7. the other player's Soul;
 8. the other player's enabled Artifacts, in equip order.

@@ -695,7 +695,7 @@ class DustyChest(Monster):
 @card(881)
 class Cuptain(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(

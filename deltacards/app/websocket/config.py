@@ -77,6 +77,6 @@ class ServerConfig:
     human_deck_name: str | None = None
     bot_deck_name: str | None = None
 
-    game_seed_base: int = 0
+    game_seed_base: int | None = None
     max_message_size: int = 1024 * 1024
     battle_log_limit: int = 250

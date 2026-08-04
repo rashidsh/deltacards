@@ -13,6 +13,8 @@ from deltacards.model.enums import (
     Tribe,
 )
 
+CARD_CACHE_VERSION = 2
+
 KEYWORD_MAP = {
     'charge': CardKeyword.CHARGE.name,
     'haste': CardKeyword.HASTE.name,
@@ -74,6 +76,7 @@ def convert_card(d: dict[str, Any], abilities_by_card: dict[int, set[str]]) -> d
         id=card_id,
         type=CardType(d['typeCard']).name,
         name=NAME_OVERRIDES.get(card_id, d['name']),
+        image=d['image'],
         rarity=CardRarity[d['rarity']].name,
         cost=d['cost'],
         abilities=sorted(abilities_by_card.get(card_id, set())),
@@ -135,6 +138,9 @@ def _read_cache(path: Path, *, source_hash: str, abilities_hash: str) -> list[di
 
     metadata = cards_cache['_meta']
 
+    if metadata.get('version') != CARD_CACHE_VERSION:
+        return None
+
     if metadata.get('source_hash') != source_hash:
         return None
 
@@ -168,7 +174,7 @@ def load_or_build_cards(
     abilities_hash = _calculate_hash(
         json.dumps(
             {
-                str(card_id): list(names)
+                str(card_id): sorted(names)
                 for card_id, names in sorted(abilities_by_card.items())
             },
             ensure_ascii=False,
@@ -192,6 +198,7 @@ def load_or_build_cards(
 
     cards_cache = {
         '_meta': {
+            'version': CARD_CACHE_VERSION,
             'source_hash': source_hash,
             'abilities_hash': abilities_hash,
         },

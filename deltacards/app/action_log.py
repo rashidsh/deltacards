@@ -159,7 +159,7 @@ class ActionLogFormatter:
     def _describe_results(self, record: ActionLogRecord) -> list[str]:
         lines: list[str] = []
 
-        for result in record.results:
+        for result in record.display_results:
             line = self._describe_result(result)
             if line is not None:
                 lines.append(line)

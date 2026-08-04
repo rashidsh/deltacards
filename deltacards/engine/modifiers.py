@@ -139,18 +139,21 @@ class RulesEngine:
     def iter_modifier_sources(self) -> Iterable['Entity']:
         for player in self.game.players.values():
             for card in player.board.cards:
-                yield card
+                if not card.silenced:
+                    yield card
 
             for enchantment in self.game.active_enchantments(player):
                 yield enchantment
 
             for card in player.hand.cards:
-                yield card
+                if not card.silenced:
+                    yield card
 
             yield player.soul
 
             for artifact in player.artifacts:
-                yield artifact
+                if artifact.active:
+                    yield artifact
 
     def iter_modifiers(self) -> Iterable[IntModifier]:
         for src in self.iter_modifier_sources():

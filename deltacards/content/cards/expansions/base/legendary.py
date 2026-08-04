@@ -17,7 +17,7 @@ class Toriel(Monster):
 @card(41)
 class MadDummy(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(
@@ -73,7 +73,7 @@ class Asriel(Monster):
         var=monster,
         effect=(
             monster.remove_negative_effects()
-            >> monster.heal(monster.max_hp - monster.hp)
+            >> monster.heal(monster.max_hp)
         )
     )
 

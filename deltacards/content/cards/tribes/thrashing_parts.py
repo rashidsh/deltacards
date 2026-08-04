@@ -31,7 +31,6 @@ class MobilityTracks(Monster):
     )
 
 
-
 @card(692)
 class FailedDesign(Monster):
     @on_event(AttackDeclaredResult)

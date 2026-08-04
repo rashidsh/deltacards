@@ -6,7 +6,6 @@ class Devilsknife(Spell):
     magic = (ENEMY_MONSTERS >> RANDOM(1)).kill()
 
 
-
 @card(446)
 class DiamondChaos(Spell):
     draw_result: Var[StepResult] = Var(StepResult)

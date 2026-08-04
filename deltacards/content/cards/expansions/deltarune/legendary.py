@@ -28,7 +28,7 @@ class Lancer(Monster):
     )
 
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(

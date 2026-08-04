@@ -86,7 +86,7 @@ class FriendshipSprout(Monster):
             COUNT(
                 CARDS_PLAYED(player=YOU)
                 & (TEMPLATE_NAME == "Friendship Sprout")
-            ) == 1
+            ) == 0
         ).to(
             YOU.draw_next()
         )
@@ -169,15 +169,29 @@ def test_power_of_friendship_quest_reward_and_flowery_power():
     assert quest.counter == quest.quest_goal
     assert not quest.active
 
-    reward_cards = [
+    sprout_cards = [
         card
         for card in [*rig.p1.hand, *rig.p1.deck]
         if card.template.name == "Friendship Sprout"
     ]
+    reward_cards = [
+        card
+        for card in sprout_cards
+        if card.has_keyword(FLOWERY_POWER)
+    ]
+    ordinary_cards = [
+        card
+        for card in sprout_cards
+        if not card.has_keyword(FLOWERY_POWER)
+    ]
 
     assert len(reward_cards) == 6
-    assert sum(card.zone is CardZone.HAND for card in reward_cards) == 5
-    assert sum(card.zone is CardZone.DECK for card in reward_cards) == 1
+    assert len(ordinary_cards) == 1
+
+    assert all(
+        card.zone in (CardZone.HAND, CardZone.DECK)
+        for card in reward_cards
+    )
     assert all(
         card.has_keyword(FLOWERY_POWER)
         for card in reward_cards

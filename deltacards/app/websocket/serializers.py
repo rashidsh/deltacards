@@ -232,15 +232,14 @@ class ViewSerializer:
         card: Card | CardSnapshot,
     ) -> dict[str, Any]:
         template = card.template
-        image = _asset_value(template.name)
 
         result = {
             'id': card.id,
             'fixedId': template.id,
             'name': template.name,
 
-            'image': image,
-            'baseImage': image,
+            'image': template.image,
+            'baseImage': template.image,
             'extension': template.expansion.name,
             'rarity': template.rarity.name,
 

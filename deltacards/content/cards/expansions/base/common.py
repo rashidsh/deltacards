@@ -16,7 +16,7 @@ class Loox(Monster):
 @card(14)
 class Jerry(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(
@@ -392,7 +392,6 @@ class DeflatedMascot(Monster):
     turn_end = YOU.earn_gold(1)
 
 
-
 @card(405)
 class Telescope(Monster):
     _effect = GENERATE_CARD("Scope").to_hand()
@@ -555,7 +554,7 @@ class SnoringMonsters(Monster):
 @card(534)
 class Carbed(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(
@@ -619,7 +618,7 @@ class MadDragon(Monster):
 @card(559)
 class LaggyTV(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         def applies(q: CostQuery) -> bool:
@@ -686,7 +685,6 @@ class FoxBodyguard(Monster):
     )
 
 
-
 @card(587)
 class GlowingShroom(Monster):
     magic = Switch(
@@ -730,7 +728,7 @@ class Stalagmite(Monster):
     dust = _effect
 
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(

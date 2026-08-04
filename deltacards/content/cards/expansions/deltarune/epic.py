@@ -485,7 +485,7 @@ class Noellecoaster(Monster):
     )
 
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.HAND) or self.silenced:
+        if self.zone is not CardZone.HAND:
             return
 
         spell_count = sum(
@@ -756,7 +756,7 @@ class MissMizzle(Monster):
     dust = _effect
 
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(
@@ -780,7 +780,7 @@ class RockstarSusie(Monster):
     )
 
     support = (
-        SELF.heal(SELF.max_hp - SELF.hp)
+        SELF.heal(SELF.max_hp)
         >> SELF.toggle_ability(SHOCK, True)
     )
 

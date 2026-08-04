@@ -46,6 +46,12 @@ class ActionOutcome:
     action_calls: list[ActionCall] | None = field(default_factory=list)
     pending_request: PendingRequest | None = None
 
+    # Optional frozen result projection for action-log and UI presentation.
+    # `None` means presentation consumers should use `results`; an empty
+    # sequence intentionally suppresses presentation of ordinary results.
+    # Presentation results are never recorded in `game.log` or dispatched.
+    presentation_results: Sequence[ActionResult] | None = None
+
 
 class Arg(Generic[T]):
     def __init__(

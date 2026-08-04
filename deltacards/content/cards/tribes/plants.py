@@ -163,7 +163,7 @@ class FlowerJar(Monster):
 @card(303)
 class RedBush(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         def other_ally_plant_count() -> int:
@@ -289,7 +289,7 @@ class Ficus(Monster):
 @card(529)
 class Vine(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.HAND) or self.silenced:
+        if self.zone is not CardZone.HAND:
             return
 
         def played_plant_count() -> int:
@@ -355,7 +355,7 @@ class GirlbossCactus(Monster):
 @card(933)
 class MetaFlowey(Monster):
     def iter_modifiers(self, game):
-        if (self.zone is not CardZone.BOARD) or self.silenced:
+        if self.zone is not CardZone.BOARD:
             return
 
         yield IntModifier(

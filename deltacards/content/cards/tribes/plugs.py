@@ -14,7 +14,6 @@ class SmallPlug(Monster):
     )
 
 
-
 @card(680)
 class Pluggirl(Monster):
     turn_end = Check(

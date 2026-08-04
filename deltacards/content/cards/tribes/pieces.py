@@ -41,7 +41,6 @@ class PonmanStatue(Monster):
     )
 
 
-
 @card(394)
 class MisterElegance(Monster):
     copied_card: Var[Card] = Var(Card)

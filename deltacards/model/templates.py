@@ -17,6 +17,7 @@ from deltacards.model.types import BaseIdentity
 class CardTemplate:
     id: int
     name: str
+    image: str
     rarity: CardRarity
     cost: int
     abilities: frozenset[Ability]
