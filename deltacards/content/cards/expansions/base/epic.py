@@ -54,7 +54,7 @@ class Bratty(Monster):
 
     magic = Check(HAND & IS_SPELL).to(
         SetVar(var=erased_spell, value=(HAND & IS_SPELL) >> RANDOM(1))
-        >> SetVar(var=erased_cost, value=((HAND & IS_SPELL) >> RANDOM(1)).cost)
+        >> SetVar(var=erased_cost, value=erased_spell.cost)
         >> erased_spell.erase().to(
             YOU.choose(
                 (CARD_LIBRARY & IS_SPELL & NON_TOKEN & (COST == erased_cost))
