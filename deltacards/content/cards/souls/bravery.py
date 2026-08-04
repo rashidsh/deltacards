@@ -34,13 +34,13 @@ class Penetration(Spell):
 class RoyalSignup(Spell):
     other_card: Var[Card] = Var(Card)
 
-    magic = YOU.choose(HAND).to(
-        ForEach(
-            CHOICE_NOT_SELECTED,
+    targets = HAND
+
+    magic = ForEach(
+            HAND & ~TARGET,
             var=other_card,
             effect=other_card.turn_into(GENERATE_CARD("Draft"))
         )
-    )
 
 
 @card(128)
@@ -116,8 +116,10 @@ class Recruitment(Spell):
 
 @card(454)
 class Acceleration(Spell):
-    magic = YOU.choose(HAND).to(
-        CHOICE_SELECTED.erase()
+    targets = HAND
+
+    magic = (
+        TARGET.erase()
         >> (YOU.draw_next() * 3)
     )
 

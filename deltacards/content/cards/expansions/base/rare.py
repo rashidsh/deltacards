@@ -162,9 +162,9 @@ class DiamondBoy2(Monster):
 
 @card(149)
 class DogHouse(Monster):
-    magic = YOU.choose(HAND & HAS_TRIBE(Tribe.DOG)).to(
-        (CHOICE_SELECTED >> EXACT_COPY()).to_deck(pos='top')
-    )
+    targets = HAND & HAS_TRIBE(Tribe.DOG)
+
+    magic = (TARGET >> EXACT_COPY()).to_deck(pos='top')
 
 
 @card(150)

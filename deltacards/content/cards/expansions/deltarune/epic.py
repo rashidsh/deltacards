@@ -104,9 +104,9 @@ class Jockington(Monster):
 
 @card(418)
 class Malius(Monster):
-    magic = YOU.choose(HAND).to(
-        CHOICE_SELECTED.to_deck()
-    )
+    targets = HAND
+
+    magic = TARGET.to_deck()
 
 
 @card(425)

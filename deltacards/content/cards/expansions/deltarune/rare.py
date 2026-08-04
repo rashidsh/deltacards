@@ -490,10 +490,10 @@ class AmbyuLance(Monster):
 
 @card(657)
 class Iconman(Monster):
-    magic = YOU.choose(HAND).to(
-        CHOICE_SELECTED.erase().to(
-            GENERATE_CARD("Recruitment").to_hand() * 2
-        )
+    targets = HAND
+
+    magic = TARGET.erase().to(
+        GENERATE_CARD("Recruitment").to_hand() * 2
     )
 
 
