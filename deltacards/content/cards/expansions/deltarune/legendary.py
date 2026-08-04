@@ -4,11 +4,10 @@ from deltacards.dsl.api import *
 @card(264)
 class Ralsei(Monster):
     copied_card: Var[Card] = Var(Card)
+    targets = HAND & IS_MONSTER & NON_DT
 
-    magic = YOU.choose(
-        HAND & IS_MONSTER & NON_DT
-    ).to(
-        SetVar(var=copied_card, value=CHOICE_SELECTED >> COPY())
+    magic = (
+        SetVar(var=copied_card, value=TARGET >> COPY())
         >> copied_card.set_base_stats(attack=3, hp=3)
         >> copied_card.summon()
     )
