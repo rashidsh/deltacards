@@ -230,10 +230,11 @@ class Rockman(Monster):
 
 @card(836)
 class FoodEnjoyer(Monster):
+    targets = HAND
     chosen_card: Var[TargetSelector] = Var(TargetSelector)
 
-    magic = YOU.choose(HAND).to(
-        SetVar(var=chosen_card, value=CHOICE_SELECTED)
+    magic = (
+        SetVar(var=chosen_card, value=TARGET)
         >> SELF.schedule_delay_effect()
     )
 
