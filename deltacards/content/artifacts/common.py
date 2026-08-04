@@ -242,7 +242,7 @@ class EvilPlan(Artifact):
             return None
 
         return ForEach(
-            CARD_LIBRARY & HAS_TRIBE(Tribe.THRASHING_PART),
+            CARD_LIBRARY & HAS_TRIBE(Tribe.THRASHING_PART) & ~HAS_TRIBE(Tribe.ALL),
             var=self.X,
             effect=(
                 SetVar(
