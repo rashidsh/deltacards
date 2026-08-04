@@ -293,9 +293,9 @@ class Mace(Monster):
 
 @card(226)
 class Microwave(Monster):
-    magic = YOU.choose(HAND).to(
-        CHOICE_SELECTED.erase()
-    )
+    targets = HAND
+
+    magic = TARGET.erase()
 
 
 @card(236)
