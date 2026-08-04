@@ -180,8 +180,7 @@ class Dream(Spell):
     magic = (
         TARGET.buff(cost=-1)
         >> TARGET.to_deck()
-        >> YOU.draw((DECK & ~TARGET).first())
-        >> YOU.draw((DECK & ~TARGET).first())
+        >> (YOU.draw((DECK & ~TARGET).first()) * 2)
     )
 
 
