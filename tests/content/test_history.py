@@ -153,8 +153,8 @@ class GIGAQueen(Monster):
         YOU.choose(
             (
                 CARD_LIBRARY
-                & IS_SPELL
                 & HAS_TRIBE(Tribe.GIGA_ATTACK)
+                & ~HAS_TRIBE(Tribe.ALL)
                 & ~IN_HISTORY(SPELLS_CAST(player=YOU))
             ) >> GENERATE_CARD()
         ).to(
