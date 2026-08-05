@@ -18,7 +18,7 @@ class MercenaryHire(Spell):
             & HAS_TRIBE(Tribe.ROYAL_GUARD)
             & ~HAS_TRIBE(Tribe.ALL)
             & (COST == 9)
-        ),
+        ) >> SORT_BY(TEMPLATE_NAME),
         var=royal_guard_template,
         effect=(
             SetVar(
