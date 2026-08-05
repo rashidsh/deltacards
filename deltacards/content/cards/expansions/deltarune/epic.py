@@ -468,12 +468,12 @@ class Noellecoaster(Monster):
             value=COUNT(SPELLS_CAST(player=YOU) & (BASE_COST >= 2))
         )
         >> YOU.choose(
-            (
-                CARD_LIBRARY
-                & IS_SPELL
-                & NON_TOKEN
-                & (COST == spell_count)
-            ) >> RANDOM(3) >> GENERATE_CARD()
+            DISCOVER(
+                IS_SPELL,
+                NON_TOKEN,
+                (COST == spell_count),
+                n=3
+            )
         ).to(
             SELF.buff(attack=spell_count, hp=spell_count)
             >> Cast(
@@ -712,13 +712,13 @@ class PixelKris(Monster):
 @card(927)
 class GachaponMachine(Monster):
     magic = YOU.choose(
-        (
-            CARD_LIBRARY
-            & IS_MONSTER
-            & NON_DT
-            & NON_TOKEN
-            & (COST == LEAST(OPPONENT.gold, 15))
-        ) >> RANDOM(5) >> GENERATE_CARD()
+        DISCOVER(
+            IS_MONSTER,
+            NON_DT,
+            NON_TOKEN,
+            (COST == LEAST(OPPONENT.gold, 15)),
+            n=5
+        )
     ).to(
         CHOICE_SELECTED.summon()
     )

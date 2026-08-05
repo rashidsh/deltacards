@@ -332,8 +332,8 @@ class MushroomDance(Spell):
     magic = YOU.choose(
         (
             CARD_LIBRARY
-            & IS_SPELL
             & HAS_TRIBE(Tribe.DANCE)
+            & ~HAS_TRIBE(Tribe.ALL)
         ) >> GENERATE_CARD()
     ).to(
         Cast(

@@ -288,7 +288,7 @@ class StuffedDoll(Monster):
     enemy_card: Var[Card] = Var(Card)
 
     magic = YOU.choose(
-        (CARD_LIBRARY & IS_MONSTER & NON_TOKEN) >> RANDOM(5) >> GENERATE_CARD()
+        DISCOVER(IS_MONSTER, NON_TOKEN, n=5)
     ).to(
         SetVar(var=your_card, value=CHOICE_SELECTED)
         >> SetVar(var=enemy_card, value=CHOICE_SELECTED >> COPY(controller=OPPONENT))

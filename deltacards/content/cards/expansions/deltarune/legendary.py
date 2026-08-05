@@ -90,8 +90,8 @@ class Jevil(Monster):
     magic = YOU.choose(
         (
             CARD_LIBRARY
-            & IS_SPELL
             & HAS_TRIBE(Tribe.CHAOS_WEAPON)
+            & ~HAS_TRIBE(Tribe.ALL)
         ) >> GENERATE_CARD()
     ).to(
         Cast(
@@ -288,6 +288,7 @@ class Wheelvil(Monster):
                 CARD_LIBRARY
                 & IS_SPELL
                 & HAS_TRIBE(Tribe.CHAOS_WEAPON)
+                & ~HAS_TRIBE(Tribe.ALL)
             ) >> RANDOM(1) >> GENERATE_CARD(),
             controller=YOU
         )

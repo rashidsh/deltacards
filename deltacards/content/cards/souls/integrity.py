@@ -16,7 +16,7 @@ class MercenaryHire(Spell):
             CARD_LIBRARY
             & IS_MONSTER
             & HAS_TRIBE(Tribe.ROYAL_GUARD)
-            & (~(TEMPLATE_NAME == "The Heroine"))
+            & ~HAS_TRIBE(Tribe.ALL)
             & (COST == 9)
         ),
         var=royal_guard_template,

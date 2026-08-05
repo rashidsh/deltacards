@@ -2,6 +2,7 @@ from deltacards.dsl.api import *
 
 
 G_FOLLOWER = HAS_TRIBE(Tribe.G_FOLLOWER)
+NOT_ALL = ~HAS_TRIBE(Tribe.ALL)
 
 
 @card(118)
@@ -23,7 +24,7 @@ class GFollower3(Monster):
     magic = Check(~SYNERGY_TRIGGERED).to(
         SetVar(
             var=g_follower_cards,
-            value=((CARD_LIBRARY & G_FOLLOWER) >> RANDOM(2) >> GENERATE_CARD())
+            value=(DISCOVER(G_FOLLOWER, NOT_ALL, n=2))
         )
         >> YOU.choose(g_follower_cards).to(
             CHOICE_SELECTED.to_hand()
@@ -33,7 +34,7 @@ class GFollower3(Monster):
     synergy = (
         SetVar(
             var=g_follower_cards,
-            value=((CARD_LIBRARY & G_FOLLOWER) >> RANDOM(2) >> GENERATE_CARD())
+            value=(DISCOVER(G_FOLLOWER, NOT_ALL, n=2))
         )
         >> g_follower_cards.buff(cost=-1)
         >> g_follower_cards.to_hand()

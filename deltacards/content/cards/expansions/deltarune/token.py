@@ -64,6 +64,7 @@ class CreateAMachine(Spell):
         (
             CARD_LIBRARY
             & HAS_TRIBE(Tribe.THRASHING_PART)
+            & ~HAS_TRIBE(Tribe.ALL)
         ) >> GENERATE_CARD()
     ).to(
         CHOICE_SELECTED.to_hand()
@@ -84,6 +85,7 @@ class CellKey(Monster):
         (
             CARD_LIBRARY
             & HAS_TRIBE(Tribe.CHAOS_WEAPON)
+            & ~HAS_TRIBE(Tribe.ALL)
         ) >> GENERATE_CARD()
     ).to(
         CHOICE_SELECTED.buff(cost=-2)
@@ -311,8 +313,8 @@ class IrresistibleDeal(Spell):
         YOU.choose(
             (
                 CARD_LIBRARY
-                & IS_SPELL
                 & HAS_TRIBE(Tribe.BARGAIN)
+                & ~HAS_TRIBE(Tribe.ALL)
             ) >> GENERATE_CARD()
         ).to(
             Cast(
@@ -403,6 +405,7 @@ class ChaosBomb(Spell):
             CARD_LIBRARY
             & IS_SPELL
             & HAS_TRIBE(Tribe.CHAOS_WEAPON)
+            & ~HAS_TRIBE(Tribe.ALL)
             & (TEMPLATE_NAME != "Club Chaos")
         ) >> GENERATE_CARD(),
         controller=YOU
@@ -415,6 +418,7 @@ class DetachableHands(Spell):
         (
             CARD_LIBRARY
             & HAS_TRIBE(Tribe.GIGA_ATTACK)
+            & ~HAS_TRIBE(Tribe.ALL)
         ) >> GENERATE_CARD()
     ).to_hand()
 
@@ -454,10 +458,7 @@ class GrandPrize(Monster):
 
 def _gacha_ball_choice(rarity: CardRarity, gachapon):
     return YOU.choose(
-        (
-            CARD_LIBRARY
-            & (RARITY == rarity)
-        ) >> RANDOM(4) >> GENERATE_CARD()
+        DISCOVER(RARITY == rarity, n=4)
     ).to(
         CHOICE_SELECTED.to_hand()
         >> gachapon.update_artifact_counter(+1)

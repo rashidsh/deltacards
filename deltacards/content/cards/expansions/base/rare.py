@@ -517,9 +517,7 @@ class CrystalCheese(Monster):
     released_card: Var[Card] = Var(Card)
 
     magic = YOU.choose(
-        (CARD_LIBRARY & HAS_TRIBE(Tribe.LOST_SOUL))
-        >> RANDOM(2)
-        >> GENERATE_CARD()
+        DISCOVER(HAS_TRIBE(Tribe.LOST_SOUL), ~HAS_TRIBE(Tribe.ALL), n=2)
     ).to(
         SELF.catch(CHOICE_SELECTED)
     )

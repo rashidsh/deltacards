@@ -49,6 +49,7 @@ class Alphys(Monster):
         (
             CARD_LIBRARY
             & HAS_TRIBE(Tribe.ROYAL_INVENTION)
+            & ~HAS_TRIBE(Tribe.ALL)
             & (CARD_SOUL == PLAYER_SOUL(player=YOU))
         ) >> GENERATE_CARD()
     ).to_hand()
@@ -262,7 +263,7 @@ class MioMioSan(Monster):
 @card(597)
 class DTExtractor(Monster):
     magic = YOU.choose(
-        (CARD_LIBRARY & DT) >> RANDOM(4) >> GENERATE_CARD()
+        DISCOVER(DT, n=4)
     ).to(
         CHOICE_SELECTED.to_hand()
     )

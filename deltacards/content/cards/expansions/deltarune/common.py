@@ -519,11 +519,11 @@ class EggplantTrashbag(Monster):
     generated_card: Var[Card] = Var(Card)
 
     magic = YOU.choose(
-        (
-            CARD_LIBRARY
-            & IS_SPELL
-            & (RARITY == BASE)
-        ) >> RANDOM(4) >> GENERATE_CARD()
+        DISCOVER(
+            IS_SPELL,
+            (RARITY == BASE),
+            n=4
+        )
     ).to(
         SetVar(var=generated_card, value=CHOICE_SELECTED)
         >> SELF.schedule_delay_effect()
