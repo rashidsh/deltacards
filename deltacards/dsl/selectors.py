@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Literal, TYPE_CHECKING
+from typing import Any, ClassVar, Literal, TYPE_CHECKING
 
 from deltacards.content.library import LIBRARY
 from deltacards.dsl.core import TargetSelector, TargetingError, ValueExpr, resolve_selector_value, to_value
@@ -8,6 +8,7 @@ from deltacards.model.cards import Card, CardZone, Monster
 from deltacards.model.enchantments import ENCHANTMENTS, Enchantment
 from deltacards.model.slots import BoardSlot
 from deltacards.model.snapshots import MonsterSnapshot
+from deltacards.model.templates import CardTemplate
 
 if TYPE_CHECKING:
     from deltacards.actions.standard import ActionContext
@@ -296,11 +297,11 @@ class RelativeBoardRangeSelector(TargetSelector):
         return f"{'LEFT_OF' if self.direction == 'left' else 'RIGHT_OF'}({self.inner!r})"
 
 
-def LEFT_OF(x: TargetSelector) -> TargetSelector:
+def LEFT_OF(x: TargetSelector) -> RelativeBoardRangeSelector:
     return RelativeBoardRangeSelector(x, direction='left')
 
 
-def RIGHT_OF(x: TargetSelector) -> TargetSelector:
+def RIGHT_OF(x: TargetSelector) -> RelativeBoardRangeSelector:
     return RelativeBoardRangeSelector(x, direction='right')
 
 
@@ -356,14 +357,62 @@ def ADJACENT_IN_HAND(x: TargetSelector) -> TargetSelector:
     return LEFT_IN_HAND(x) | RIGHT_IN_HAND(x)
 
 
+@dataclass(frozen=True, slots=True, eq=False)
+class RelativeHandRangeSelector(TargetSelector):
+    inner: TargetSelector
+    direction: Literal['left', 'right']
+
+    def eval(self, ctx: 'ActionContext', **kwargs) -> list[Any]:
+        card = self.inner.eval_optional_one(ctx=ctx, **kwargs)
+        if card is None:
+            return []
+
+        if not isinstance(card, Card):
+            raise TargetingError(f"RelativeHandRangeSelector expects Card, got {type(card).__name__}: {card!r}")
+
+        player = ctx.game.player(card.controller_id)
+        cards = player.hand.cards
+
+        try:
+            index = cards.index(card)
+        except ValueError:
+            return []
+
+        if self.direction == 'left':
+            return cards[:index]
+
+        return cards[index + 1:]
+
+    def __repr__(self) -> str:
+        return f"{'LEFT_OF_HAND' if self.direction == 'left' else 'RIGHT_OF_HAND'}({self.inner!r})"
+
+
+def LEFT_OF_HAND(x: TargetSelector) -> RelativeHandRangeSelector:
+    return RelativeHandRangeSelector(x, direction='left')
+
+
+def RIGHT_OF_HAND(x: TargetSelector) -> RelativeHandRangeSelector:
+    return RelativeHandRangeSelector(x, direction='right')
+
+
 # --------------------
 # Library selectors
 # --------------------
 
 @dataclass(frozen=True, slots=True, eq=False)
 class CardLibrarySelector(TargetSelector):
+    _cards_cache: ClassVar[list[CardTemplate] | None] = None
+
     def eval(self, ctx: 'ActionContext', **kwargs) -> list[Any]:
-        return list(LIBRARY._by_id.values())  # TODO cache
+        cards = CardLibrarySelector._cards_cache
+        if cards is None:
+            cards = sorted(
+                LIBRARY._by_id.values(),
+                key=lambda card: (card.cost, card.id),
+            )
+            CardLibrarySelector._cards_cache = cards
+
+        return cards
 
     def __repr__(self) -> str:
         return "CARD_LIBRARY"

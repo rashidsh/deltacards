@@ -18,7 +18,9 @@ from deltacards.engine.action_log import ActionLogRecord
 from deltacards.model.enums import Ability, CardZone, PlayerId
 from deltacards.model.snapshots import (
     ArtifactSnapshot,
+    BoardSlotSnapshot,
     CardSnapshot,
+    EnchantmentSnapshot,
     MonsterSnapshot,
     PlayerSnapshot,
     SoulSnapshot,
@@ -68,7 +70,13 @@ def entity_name(snapshot) -> str:
     if isinstance(snapshot, ArtifactSnapshot):
         return snapshot.name
 
-    raise TypeError
+    if isinstance(snapshot, BoardSlotSnapshot):
+        return f"Player {snapshot.controller_id.value} slot {snapshot.pos + 1}"
+
+    if isinstance(snapshot, EnchantmentSnapshot):
+        return snapshot.name
+
+    raise TypeError(f"Unsupported entity snapshot type: {type(snapshot).__name__}")
 
 
 def visible_entity_name(snapshot, view: LogView) -> str:

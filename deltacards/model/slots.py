@@ -29,7 +29,7 @@ class BoardSlot(Entity):
         self.enchantment_id: int | None = None
 
     def __str__(self) -> str:
-        return f"Player {self.controller_id.value} slot {self.pos}"
+        return f"Player {self.controller_id.value} slot {self.pos + 1}"
 
     def _get_controller(self, ctx: 'ActionContext') -> 'Player':
         return ctx.game.player(self.controller_id)

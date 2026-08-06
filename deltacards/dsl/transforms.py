@@ -9,6 +9,7 @@ from deltacards.dsl.values import TEMPLATE_ID
 from deltacards.model.cards import Card, CardZone, Monster
 from deltacards.model.entity import Entity
 from deltacards.model.player import Player
+from deltacards.model.snapshots import CardSnapshot
 from deltacards.model.templates import CardTemplate
 
 if TYPE_CHECKING:
@@ -241,11 +242,12 @@ class CopyTransform(Transform):
 
         creator = self._resolve_creator(ctx, **kwargs)
 
-        assert all(isinstance(e, Card) for e in entities)
-
         result = []
         for card in entities:
             if self.exact:
+                if not isinstance(card, Card):
+                    raise TargetingError(f"EXACT_COPY expects runtime Cards, got {type(card).__name__}")
+
                 result.append(
                     ctx.game.create_card_copy_exact(
                         card,
@@ -255,6 +257,9 @@ class CopyTransform(Transform):
                     )
                 )
             else:
+                if not isinstance(card, (Card, CardSnapshot)):
+                    raise TargetingError(f"COPY expects Cards or CardSnapshots, got {type(card).__name__}")
+
                 result.append(
                     ctx.game.create_card_copy(
                         card,

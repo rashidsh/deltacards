@@ -42,6 +42,7 @@ from deltacards.model.enums import (
 )
 from deltacards.model.player import Player
 from deltacards.model.requests import PendingRequest
+from deltacards.model.snapshots import CardSnapshot
 from deltacards.model.slots import BoardSlot
 from deltacards.model.types import BaseIdentity
 
@@ -264,14 +265,14 @@ class Game:
 
     def create_card_copy(
         self,
-        card: Card,
+        card: Card | CardSnapshot,
         controller_id: PlayerId,
         creator_id: int | None = None,
         creator_base_identity: BaseIdentity | None = None,
     ) -> Card:
-        """Create a base copy of a card from template."""
-        if not isinstance(card, Card):
-            raise TypeError(f"Expected Card, got {type(card).__name__}")
+        """Create a base copy from a runtime Card or CardSnapshot."""
+        if not isinstance(card, (Card, CardSnapshot)):
+            raise TypeError(f"Expected Card or CardSnapshot, got {type(card).__name__}")
 
         return self.create_card(
             template_id=card.template.id,
@@ -1701,7 +1702,7 @@ class Game:
                     else None
                 )
                 assert slot.monster_id == expected_monster_id, (
-                    f"P{player.id.value} slot {pos}: "
+                    f"P{player.id.value} slot {pos + 1}: "
                     f"slot.monster_id={slot.monster_id}, "
                     f"board monster={expected_monster_id}"
                 )

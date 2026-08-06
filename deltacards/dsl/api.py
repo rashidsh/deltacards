@@ -170,6 +170,7 @@ from deltacards.dsl.selectors import (
     LEFT,
     LEFT_IN_HAND,
     LEFT_OF,
+    LEFT_OF_HAND,
     ALL_MONSTERS,
     LOOP_COPY,
     MONSTER_IN_SLOT,
@@ -185,6 +186,7 @@ from deltacards.dsl.selectors import (
     RESOLVE_ENTITY,
     RIGHT,
     RIGHT_IN_HAND,
+    RIGHT_OF_HAND,
     RIGHT_OF,
     SELF,
     SLOT_OF,
@@ -330,6 +332,7 @@ __all__ = (
     'LEFT_OF', 'RIGHT_OF',
 
     'LEFT_IN_HAND', 'RIGHT_IN_HAND', 'ADJACENT_IN_HAND',
+    'LEFT_OF_HAND', 'RIGHT_OF_HAND',
 
     'BOARD_OF', 'HAND_OF', 'DECK_OF', 'DUSTPILE_OF', 'ERASED_OF',
     'CONTROLLER_OF', 'OPPONENT_OF',
