@@ -104,11 +104,19 @@ class Card(Entity, Generic[TTemplate]):
         self._zone = zone
         self.creator_id = creator_id
         self.creator_base_identity = creator_base_identity
-        self.base = base or BaseStats(
-            cost=self.template.cost,
-            attack=getattr(self.template, 'attack', None),
-            hp=getattr(self.template, 'hp', None),
-        )
+
+        if base is not None:
+            self.base = base
+        elif isinstance(self.template, MonsterTemplate):
+            self.base = BaseStats(
+                cost=self.template.cost,
+                attack=self.template.attack,
+                hp=self.template.hp,
+            )
+        else:
+            self.base = BaseStats(
+                cost=self.template.cost,
+            )
 
         self.keywords = self.template.keywords
         self.statuses = self.template.statuses.copy()
@@ -286,29 +294,24 @@ class Card(Entity, Generic[TTemplate]):
             raise ValueError(f"Template ID mismatch: {self.template.id} != {other.template.id}")
 
         self.base = replace(other.base)
-        self.keywords = other.keywords
+        self.keywords = other.keywords & ~CardKeyword.HASTE  # exact copies don't copy Haste
         self.statuses = other.statuses.copy()
         self.active_abilities = other.active_abilities.copy()
         self.buffs = replace(other.buffs)
         self.caught_card = replace(other.caught_card) if other.caught_card is not None else None
 
-    def get_exact_copy_attrs(self) -> dict:
+    def get_snapshot_attrs(self) -> dict:
         return dict(
+            id=self.id,
             type=self.type,
             template=self.template,
             controller_id=self.controller_id,
             base=replace(self.base),
-            keywords=self.keywords & ~CardKeyword.HASTE,  # exact copies don't copy Haste
+            keywords=self.keywords,
             statuses=self.statuses.copy(),
             active_abilities=self.active_abilities.copy(),
             buffs=replace(self.buffs),
             caught_card=replace(self.caught_card) if self.caught_card is not None else None,
-        )
-
-    def get_snapshot_attrs(self) -> dict:
-        return dict(
-            **self.get_exact_copy_attrs(),
-            id=self.id,
             zone=self.zone,
             creator_id=self.creator_id,
             creator_base_identity=self.creator_base_identity,
@@ -428,7 +431,7 @@ class Monster(Card[MonsterTemplate]):
         return self.has_keyword(CardKeyword.SILENCED)
 
     def get_ability(self, ability: Ability):
-        if self.silenced:
+        if self.silenced and (ability is not Ability.DELAY):  # TODO
             return None
 
         return super().get_ability(ability)
@@ -543,14 +546,6 @@ class Monster(Card[MonsterTemplate]):
         self.has_attacked = other.has_attacked
         self.hp_missing = other.hp_missing
 
-    def get_exact_copy_attrs(self) -> dict:
-        return dict(
-            **super().get_exact_copy_attrs(),
-            age=self.age,
-            has_attacked=self.has_attacked,
-            hp_missing=self.hp_missing,
-        )
-
     def get_snapshot_attrs(self) -> dict:
         if self._zone is CardZone.BOARD:
             slot_id = self.game.board_slot(self.controller_id, self.pos).id
@@ -559,8 +554,11 @@ class Monster(Card[MonsterTemplate]):
 
         return dict(
             **super().get_snapshot_attrs(),
-            slot_id=slot_id,
+            age=self.age,
             pos=self.pos,
+            has_attacked=self.has_attacked,
+            hp_missing=self.hp_missing,
+            slot_id=slot_id,
             attack=self.attack,
             hp=self.hp,
             max_hp=self.max_hp,

@@ -15,8 +15,13 @@ from deltacards.engine.effects import (
     StepResult,
     While,
 )
-from deltacards.model.cards import Card, Monster, Spell, card
-from deltacards.model.enchantments import Enchantment, enchantment
+from deltacards.model.artifacts import (
+    Artifact,
+    ArtifactRarity,
+    QuestArtifact,
+)
+from deltacards.model.enchantments import Enchantment
+from deltacards.model.cards import Card, Monster, Spell
 from deltacards.model.entity import Entity, on_event
 from deltacards.model.enums import (
     Ability,
@@ -32,6 +37,19 @@ from deltacards.model.enums import (
 )
 from deltacards.model.player import Player
 from deltacards.model.slots import BoardSlot
+from deltacards.model.souls import Soul
+
+from deltacards.content.decorators import (
+    artifact,
+    card,
+    enchantment,
+    soul,
+)
+from deltacards.content.registry import (
+    CustomImage,
+    ExistingImage,
+    LocalizedText,
+)
 
 from deltacards.dsl.aggregates import (
     COUNT,
@@ -119,6 +137,7 @@ from deltacards.dsl.predicates import (
     HAS_KEYWORD,
     HAS_STATUS,
     HAS_TRIBE,
+    IS_CUSTOM_CONTENT,
     IS_MONSTER,
     IS_SPELL,
     NON_DT,
@@ -383,6 +402,7 @@ __all__ = (
     'ENCHANTED_SLOT',
     'UNENCHANTED_SLOT',
     'SLOT_HAS_ENCHANTMENT',
+    'IS_CUSTOM_CONTENT',
 
     # Transforms
     'RANDOM',
@@ -465,6 +485,11 @@ __all__ = (
     'Check', 'For', 'ForEach', 'While', 'StepResult',
     'NO_EFFECT',
 
+    # Content definitions
+    'ExistingImage',
+    'CustomImage',
+    'LocalizedText',
+
     # Cards
     'Card', 'Monster', 'Spell', 'card',
 
@@ -472,6 +497,16 @@ __all__ = (
     'CardTemplate',
     'MonsterTemplate',
     'SpellTemplate',
+
+    # Artifacts
+    'Artifact',
+    'ArtifactRarity',
+    'QuestArtifact',
+    'artifact',
+
+    # Souls
+    'Soul',
+    'soul',
 
     # Enchantments
     'Enchantment', 'enchantment',

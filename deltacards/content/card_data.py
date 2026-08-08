@@ -13,7 +13,7 @@ from deltacards.model.enums import (
     Tribe,
 )
 
-CARD_CACHE_VERSION = 2
+CARD_CACHE_VERSION = 3
 
 KEYWORD_MAP = {
     'charge': CardKeyword.CHARGE.name,
@@ -88,7 +88,7 @@ def convert_card(d: dict[str, Any], abilities_by_card: dict[int, set[str]]) -> d
             Tribe(tribe_id.lower()).name
             for tribe_id in d['tribes']
         ),
-        soul_id=d['soul']['name'].lower() if d.get('soul') else None,
+        soul_id=d['soul']['name'].upper() if d.get('soul') else None,
     )
 
     match d['typeCard']:
@@ -157,6 +157,22 @@ def _write_cache(path: Path, data: dict) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+def decode_source_cards(source: str | bytes) -> list[dict[str, Any]]:
+    source_cards = json.loads(source)
+
+    if isinstance(source_cards, dict):
+        cards_text = source_cards.get('cards')
+        if not isinstance(cards_text, str):
+            raise ValueError("AllCards.json must contain JSON text")
+
+        source_cards = json.loads(cards_text)
+
+    if not isinstance(source_cards, list):
+        raise ValueError("AllCards.json must contain a JSON array")
+
+    return source_cards
+
+
 def load_or_build_cards(
     source_path: Path,
     cache_path: Path,
@@ -170,6 +186,15 @@ def load_or_build_cards(
     """
     source_bytes = source_path.read_bytes()
     source_hash = _calculate_hash(source_bytes)
+
+    source_cards = decode_source_cards(source_bytes)
+    source_card_ids = {int(card['fixedId']) for card in source_cards}
+
+    abilities_by_card = {
+        card_id: names
+        for card_id, names in abilities_by_card.items()
+        if card_id in source_card_ids
+    }
 
     abilities_hash = _calculate_hash(
         json.dumps(
@@ -190,11 +215,7 @@ def load_or_build_cards(
         if cached_cards is not None:
             return cached_cards
 
-    source_cards = json.loads(source_bytes)
-    if isinstance(source_cards, dict):
-        source_cards = json.loads(source_cards['cards'])
-
-    cards = convert_cards(source_cards, abilities_by_card)
+    records = convert_cards(source_cards, abilities_by_card)
 
     cards_cache = {
         '_meta': {
@@ -202,8 +223,8 @@ def load_or_build_cards(
             'source_hash': source_hash,
             'abilities_hash': abilities_hash,
         },
-        'cards': cards,
+        'cards': records,
     }
 
     _write_cache(cache_path, cards_cache)
-    return cards
+    return records

@@ -17,6 +17,7 @@ def enchantment(enchantment_id: str):
         if enchantment_id in ENCHANTMENTS:
             raise ValueError(f"Enchantment with ID {enchantment_id} already exists")
 
+        class_.definition_id = enchantment_id
         ENCHANTMENTS[enchantment_id] = class_
         return class_
 
@@ -26,6 +27,7 @@ def enchantment(enchantment_id: str):
 class Enchantment(Entity):
     __slots__ = 'owner_id', 'controller_id', 'slot_id', 'counter', 'active', 'creator_id', 'creator_base_identity'
 
+    definition_id: ClassVar[str]
     name: ClassVar[str]
     initial_counter: ClassVar[int] = 0
 
@@ -57,7 +59,7 @@ class Enchantment(Entity):
 
     @property
     def base_identity(self) -> BaseIdentity:
-        return 'enchantment', self.name
+        return 'enchantment', self.definition_id
 
     @property
     def is_generated(self) -> bool:
@@ -78,6 +80,7 @@ class Enchantment(Entity):
     def to_snapshot(self) -> EnchantmentSnapshot:
         return EnchantmentSnapshot(
             id=self.id,
+            definition_id=self.definition_id,
             name=self.name,
             controller_id=self.controller_id,
             slot_id=self.slot_id,

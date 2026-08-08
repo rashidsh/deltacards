@@ -1,8 +1,7 @@
 import json
-import re
-from functools import cache
 from typing import Any, TYPE_CHECKING
 
+from deltacards.content.registry import CONTENT
 from deltacards.model.artifacts import (
     ARTIFACTS,
     Artifact,
@@ -68,21 +67,6 @@ def decode_wire_slot_id(slot_id: int) -> tuple[PlayerId, int] | None:
         return PlayerId.P1, slot_id - 100004
 
     return None
-
-
-@cache
-def artifact_definition_id(name: str) -> int:
-    return next(
-        artifact_id
-        for artifact_id, artifact_type in ARTIFACTS.items()
-        if artifact_type.name == name
-    )
-
-
-def _asset_value(name: str) -> str:
-    value = name.strip().replace(' ', '_').replace('-', '_')
-    value = re.sub(r'[^A-Za-z0-9_-]', '', value)
-    return value
 
 
 class ViewSerializer:
@@ -167,7 +151,7 @@ class ViewSerializer:
             return {
                 'typeCreator': 2,
                 'id': 0,
-                'name': SOULS[creator_value].__name__.upper(),
+                'name': SOULS[creator_value].__name__,
             }
 
         if creator_kind == 'enchantment':
@@ -233,13 +217,19 @@ class ViewSerializer:
     ) -> dict[str, Any]:
         template = card.template
 
+        frontend_image = CONTENT.image(
+            'card',
+            template.id,
+            default_name=template.image,
+        )
+
         result = {
             'id': card.id,
             'fixedId': template.id,
             'name': template.name,
 
-            'image': template.image,
-            'baseImage': template.image,
+            'image': frontend_image.name,
+            'baseImage': frontend_image.name,
             'extension': template.expansion.name,
             'rarity': template.rarity.name,
 
@@ -278,6 +268,15 @@ class ViewSerializer:
         if caught_card is not None:
             result['caughtMonster'] = caught_card
 
+        if template.soul_id is not None:
+            result['soul'] = {
+                'name': template.soul_id.upper(),
+            }
+
+        if frontend_image.url is not None:
+            result['imageUrl'] = frontend_image.url
+            result['baseImageUrl'] = frontend_image.url
+
         return result
 
     # --------------------
@@ -288,27 +287,34 @@ class ViewSerializer:
     def soul_view(
         soul: Soul | SoulSnapshot,
     ) -> dict[str, Any]:
-        if isinstance(soul, Soul):
-            name = soul.__class__.__name__.upper()
-        else:
-            name = soul.name.upper()
+        frontend_image = CONTENT.image(
+            'soul',
+            soul.definition_id,
+            default_name=soul.name,
+        )
 
         return {
-            'name': name,
+            'name': frontend_image.name,
         }
 
     @staticmethod
     def artifact_view(
         artifact: Artifact | ArtifactSnapshot,
     ) -> dict[str, Any]:
-        definition_id = artifact_definition_id(artifact.name)
+        definition_id = artifact.definition_id
         artifact_type = ARTIFACTS[definition_id]
         is_quest = issubclass(artifact_type, QuestArtifact)
 
+        artifact_images = CONTENT.artifact_images(
+            definition_id,
+            default_name=artifact.name,
+        )
+        frontend_image = artifact_images.image
+
         result = {
-            'id': definition_id,
+            'id': artifact.definition_id,
             'name': artifact.name,
-            'image': _asset_value(artifact.name),
+            'image': frontend_image.name,
             'legendary': artifact_type.rarity is ArtifactRarity.LEGENDARY,
             'artifactType': 1 if is_quest else 0,
             'custom': 0 if is_quest else artifact.counter,
@@ -324,17 +330,53 @@ class ViewSerializer:
 
             result['progress'] = artifact.counter
             result['goal'] = goal
+            result['overlayUrl'] = artifact_images.overlay_url
+
+        if frontend_image.url is not None:
+            result['imageUrl'] = frontend_image.url
 
         return result
 
-    @staticmethod
     def enchantment_view(
+        self,
         enchantment: Enchantment | EnchantmentSnapshot,
     ) -> dict[str, Any]:
-        return {
-            'name': enchantment.name.replace(" ", ""),
+        definition_id = enchantment.definition_id
+        frontend_name = CONTENT.frontend_name(
+            'enchantment',
+            definition_id,
+            default_name=enchantment.name,
+        )
+
+        if CONTENT.is_custom('enchantment', definition_id):
+            frontend_images = CONTENT.enchantment_images(
+                definition_id,
+                default_name=enchantment.name,
+            )
+            asset_name = frontend_images.asset_name
+
+        else:
+            frontend_images = None
+            asset_name = CONTENT.image(
+                'enchantment',
+                definition_id,
+                default_name=enchantment.name,
+            ).name
+
+        result = {
+            'name': frontend_name,
+            'assetName': asset_name,
             'custom': enchantment.counter,
         }
+
+        if frontend_images is not None:
+            result.update({
+                'backgroundUrl': frontend_images.background_url,
+                'overlayUrl': frontend_images.overlay_url,
+                'logUrl': frontend_images.log_url,
+            })
+
+        return result
 
     def slot_view(
         self,

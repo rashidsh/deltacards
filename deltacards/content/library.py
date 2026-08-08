@@ -86,11 +86,20 @@ class CardLibrary:
         self._by_id = by_id
         self._by_name = by_name
 
-    def load_templates(self, data: list[dict]) -> None:
-        self.set_templates(
+    def load_templates(
+        self,
+        data: list[dict],
+        *,
+        extra_templates: Iterable[CardTemplate] = (),
+    ) -> None:
+        templates = [
             self._load_template(d)
             for d in data
-        )
+        ]
+        templates.extend(extra_templates)
+        templates.sort(key=lambda template: template.id)
+
+        self.set_templates(templates)
 
 
 LIBRARY = CardLibrary()

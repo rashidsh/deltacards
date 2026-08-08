@@ -2,13 +2,13 @@ from deltacards.dsl.api import *
 from deltacards.model.souls import Soul, soul
 
 
-@soul('empty_soul')
+@soul('EMPTY')
 class EmptySoul(Soul):
     """Soul with no effects to simplify testing"""
     pass
 
 
-@soul('kindness')
+@soul('KINDNESS')
 class Kindness(Soul):
     turn_end = Check(YOU.turn >= 3).to(
         YOU.heal(1)
@@ -19,7 +19,7 @@ class Kindness(Soul):
     )
 
 
-@soul('determination')
+@soul('DETERMINATION')
 class Determination(Soul):
     def __init__(self, id: int, controller_id: PlayerId):
         super().__init__(id, controller_id)
@@ -39,7 +39,7 @@ class Determination(Soul):
         return None
 
 
-@soul('patience')
+@soul('PATIENCE')
 class Patience(Soul):
     turn_end = Check(
         (YOU.turn % 2 == 0)
@@ -50,7 +50,7 @@ class Patience(Soul):
     )
 
 
-@soul('bravery')
+@soul('BRAVERY')
 class Bravery(Soul):
     turn_start = Check(YOU.turn % 3 == 0).to(
         Check(COUNT(HAND) < MAX_HAND_SIZE).to(
@@ -60,7 +60,7 @@ class Bravery(Soul):
     )
 
 
-@soul('integrity')
+@soul('INTEGRITY')
 class Integrity(Soul):
     turn_start = Check(YOU.turn > 10).to(
         YOU.earn_gold(1)
@@ -72,11 +72,11 @@ class Integrity(Soul):
     )
 
 
-@soul('perseverance')
+@soul('PERSEVERANCE')
 class Perseverance(Soul):
     turn_start = ((ENEMY_MONSTERS & ~HAS_KEYWORD(KR)) >> MAX(ATTACK)).add_keyword(KR)
 
 
-@soul('justice')
+@soul('JUSTICE')
 class Justice(Soul):
     turn_start = (ENEMY_MONSTERS >> MIN(HP)).hit(1)
