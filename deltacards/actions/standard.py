@@ -759,7 +759,7 @@ class SwapStats(Action):
     target: Arg['Monster'] = Arg(many=True)
 
     def execute(self, target: Monster, *, ctx: ActionContext, **kwargs):
-        if not isinstance(target, Card):
+        if not isinstance(target, Monster):
             return ActionOutcome(success=False)
 
         if target.zone not in CARD_EDITABLE_ZONES:
@@ -792,7 +792,7 @@ class HalveStats(Action):
     round_up: Arg['bool'] = Arg()
 
     def execute(self, target: Monster, round_up: bool, *, ctx: ActionContext, **kwargs):
-        if not isinstance(target, Card):
+        if not isinstance(target, Monster):
             return ActionOutcome(success=False)
 
         if target.zone not in CARD_EDITABLE_ZONES:
@@ -1284,7 +1284,7 @@ class Cast(Action):
         ctx: ActionContext,
         **kwargs
     ):
-        if not isinstance(card, Card):
+        if not isinstance(card, Spell):
             return ActionOutcome(success=False)
 
         if card.zone not in CARD_EDITABLE_ZONES:

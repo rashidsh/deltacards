@@ -14,7 +14,7 @@ from deltacards.model.souls import Soul, soul
 from .card_templates import load_test_templates
 
 
-@soul('empty_soul')
+@soul('EMPTY')
 class EmptySoul(Soul):
     """Soul with no effects to simplify testing"""
     pass
@@ -26,7 +26,7 @@ class RigError(Exception):
 
 @dataclass
 class RigConfig:
-    soul_id: str = 'EMPTY_SOUL'
+    soul_id: str = 'EMPTY'
     p1_artifacts: Sequence[int] = ()
     p2_artifacts: Sequence[int] = ()
 
@@ -211,7 +211,7 @@ class TestRig:
     @classmethod
     def create(
         cls,
-        soul_id: str = 'EMPTY_SOUL',
+        soul_id: str = 'EMPTY',
         p1_artifacts: Sequence[int] = (),
         p2_artifacts: Sequence[int] = (),
         p1_deck: Sequence[int] = (1,),

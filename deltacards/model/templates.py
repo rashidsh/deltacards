@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from deltacards.model.enums import (
     Ability,
@@ -12,12 +13,15 @@ from deltacards.model.enums import (
 )
 from deltacards.model.types import BaseIdentity
 
+if TYPE_CHECKING:
+    from deltacards.content.registry import ImageSpec
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CardTemplate:
     id: int
     name: str
-    image: str
+    image: 'ImageSpec'
     rarity: CardRarity
     cost: int
     abilities: frozenset[Ability]
@@ -26,7 +30,7 @@ class CardTemplate:
     active_abilities: set[CardToggleableAbility]
     expansion: Expansion
     tribes: tuple[Tribe, ...]
-    soul_id: int | None
+    soul_id: str | None
 
     @property
     def base_identity(self) -> BaseIdentity:

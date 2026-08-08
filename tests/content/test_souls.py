@@ -4,7 +4,7 @@ from deltacards.model.souls import Soul, soul
 from ..rig import TestRig
 
 
-@soul('determination')
+@soul('DETERMINATION')
 class Determination(Soul):
     def __init__(self, id: int, controller_id: PlayerId):
         super().__init__(id, controller_id)

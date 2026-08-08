@@ -15,9 +15,7 @@ class PendingRequest:
 
 @dataclass
 class ChoicePrompt:
-    pass
-
-    def option_ids(self) -> set[str]:
+    def option_ids(self) -> set[int]:
         raise NotImplementedError
 
 

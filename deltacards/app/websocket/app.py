@@ -1,14 +1,20 @@
 import argparse
 import asyncio
+import logging
 import re
 import signal
 from dataclasses import replace
+from http import HTTPStatus
 from urllib.parse import parse_qs, urlsplit
 
 from websockets.asyncio.server import ServerConnection, serve
+from websockets.datastructures import Headers
 from websockets.exceptions import ConnectionClosed
+from websockets.http11 import Response
 
-from deltacards.content.loader import load
+from deltacards.content.frontend import FrontendContentCatalog
+from deltacards.content.loader import SOURCE_CARDS_JSON, load
+from deltacards.content.registry import CONTENT
 from deltacards.model.enums import PlayerId
 
 from .config import ServerConfig
@@ -18,6 +24,61 @@ from .serializers import json_text
 from .session import WebSocketSession, fatal_error_event
 
 
+def http_response(
+    *,
+    status: HTTPStatus = HTTPStatus.OK,
+    content_type: str,
+    body: bytes,
+) -> Response:
+    return Response(
+        status_code=status.value,
+        reason_phrase=status.phrase,
+        headers=Headers([
+            ('Content-Type', content_type),
+            ('Content-Length', str(len(body))),
+            ('Cache-Control', 'no-cache'),
+            ('Access-Control-Allow-Origin', '*'),
+        ]),
+        body=body,
+    )
+
+
+def json_response(data: dict | list) -> Response:
+    return http_response(
+        content_type='application/json; charset=utf-8',
+        body=json_text(data).encode('utf-8'),
+    )
+
+
+def deck_error_response(translation_key: str) -> dict:
+    return {
+        'status': 'error',
+        'message': json_text({
+            'args': json_text([translation_key]),
+        }),
+    }
+
+
+class IgnoreOptionsException(logging.Filter):
+    # TODO: should switch to another http / websockets library
+    #  rather than continuing using `websockets` for everything and relying on hacks like this one
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.getMessage() != "opening handshake failed":
+            return True
+
+        if record.exc_info is None:
+            return True
+
+        exc = record.exc_info[1]
+        while exc is not None:
+            if ("unsupported HTTP method" in str(exc)) and ("got OPTIONS" in str(exc)):
+                return False
+
+            exc = exc.__cause__ or exc.__context__
+
+        return True
+
+
 class WebSocketApplication:
     def __init__(
         self,
@@ -25,6 +86,7 @@ class WebSocketApplication:
     ):
         self.config = config or ServerConfig()
         self.registry = GameRegistry(self.config)
+        self.frontend_content = FrontendContentCatalog.build(SOURCE_CARDS_JSON)
 
     @staticmethod
     def _parse_endpoint(
@@ -114,6 +176,102 @@ class WebSocketApplication:
         except ConnectionClosed:
             pass
 
+    def deck_config_action_response(
+        self,
+        query: dict[str, list[str]],
+    ) -> dict:
+        action_values = query.get('action')
+        soul_values = query.get('soul')
+
+        if not action_values or not soul_values:
+            return deck_error_response('decks-error-invalid-request')
+
+        action = action_values[0]
+        soul = soul_values[0]
+
+        if action in ('addCard', 'removeCard'):
+            try:
+                card_id = int(query['idCard'][0])
+            except (KeyError, IndexError, ValueError):
+                return deck_error_response('decks-error-card-not-owned')
+
+            card = self.frontend_content.custom_card(card_id)
+            if card is None:
+                return deck_error_response('decks-error-card-not-owned')
+
+            response_card = dict(card)
+            response_card['shiny'] = query.get('isShiny', ['false'])[0].lower() == 'true'
+
+            return {
+                'soul': soul,
+                'card': json_text(response_card),
+            }
+
+        if action == 'addArtifact':
+            try:
+                artifact_id = int(query['idArtifact'][0])
+            except (KeyError, IndexError, ValueError):
+                return deck_error_response('decks-error-artifact-not-owned')
+
+            artifact = self.frontend_content.custom_artifact(artifact_id)
+            if artifact is None:
+                return deck_error_response('decks-error-artifact-not-owned')
+
+            return {
+                'action': 'getArtifactAdded',
+                'soul': soul,
+                'artifact': json_text(artifact),
+            }
+
+        return deck_error_response('decks-error-invalid-request')
+
+    async def process_request(self, connection, request):
+        parsed = urlsplit(request.path)
+
+        if parsed.path == '/check/':
+            return json_response({'status': 'ok'})
+
+        if (
+            parsed.path == '/cards-version/'
+            and parse_qs(parsed.query).get('type') == ['cards']
+        ):
+            return json_response({
+                'cardsVersion': self.frontend_content.cards_version,
+                'customContent': self.frontend_content.custom_content_view(),
+            })
+
+        if parsed.path == '/cards/':
+            return json_response({
+                'cards': json_text(self.frontend_content.cards),
+            })
+
+        if parsed.path == '/translations/':
+            locale = parse_qs(parsed.query).get('locale', ['en'])[0]
+            return json_response(CONTENT.localization_entries(locale))
+
+        if parsed.path == '/decks-config/':
+            return json_response(
+                self.deck_config_action_response(
+                    parse_qs(parsed.query, keep_blank_values=True)
+                )
+            )
+
+        asset = CONTENT.asset_at_url(parsed.path)
+        if asset is not None:
+            return http_response(
+                content_type=asset.content_type,
+                body=asset.data,
+            )
+
+        if request.headers.get('Upgrade', '').lower() != 'websocket':
+            return http_response(
+                status=HTTPStatus.NOT_FOUND,
+                content_type='text/plain; charset=utf-8',
+                body=b"Not found\n",
+            )
+
+        return None
+
 
 async def run_server(
     config: ServerConfig | None = None,
@@ -133,11 +291,16 @@ async def run_server(
 
     print(f"Starting WebSocket server on ws://{config.host}:{config.port}")
 
+    ws_logger = logging.getLogger('deltacards.websockets')
+    ws_logger.addFilter(IgnoreOptionsException())
+
     async with serve(
         application.handler,
         config.host,
         config.port,
         max_size=config.max_message_size,
+        process_request=application.process_request,
+        logger=ws_logger,
     ):
         await stop_event.wait()
 
@@ -196,6 +359,7 @@ def config_from_args(
             if args.bot_deck is not None
             else config.bot_deck_name
         ),
+        game_seed_base=args.seed_base,
     )
 
 

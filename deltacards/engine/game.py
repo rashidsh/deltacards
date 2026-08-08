@@ -1280,6 +1280,9 @@ class Game:
                 source=pending.source,
                 ctx=ctx,
                 env=pending.env,
+                log_group_id=pending.log_group_id,
+                log_parent_id=pending.log_parent_id,
+                log_depth=pending.log_depth,
                 **pending.kwargs,
             )
             return []

@@ -26,7 +26,7 @@ class Player(Entity):
         self.id: PlayerId = player_id
 
         self.starting_deck_card_ids = deck
-        self.starting_soul_id = soul_id.lower()
+        self.starting_soul_id = soul_id
         self.starting_artifact_ids = artifact_ids
         self.is_first_turn: bool = None
 

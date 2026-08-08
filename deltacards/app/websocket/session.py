@@ -194,7 +194,10 @@ class WebSocketSession:
             )
 
         except FatalProtocolError as exc:
-            print(f"Fatal protocol error in game {self.hosted.game_id} for player {self.player_id.value}: {exc}")
+            print(
+                f"Fatal protocol error in game {self.hosted.game_id} for player {self.player_id.value}:\n"
+                f"{traceback.format_exc()}"
+            )
             await self.fail_fatally(
                 exc.translation_key,
                 *exc.translation_args,

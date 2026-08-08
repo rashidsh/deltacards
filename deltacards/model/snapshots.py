@@ -83,6 +83,7 @@ class SpellSnapshot(CardSnapshot):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SoulSnapshot(EntitySnapshot):
     id: int
+    definition_id: str
     name: str
     controller_id: PlayerId
 
@@ -90,6 +91,7 @@ class SoulSnapshot(EntitySnapshot):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ArtifactSnapshot(EntitySnapshot):
     id: int
+    definition_id: int
     name: str
     controller_id: PlayerId
     counter: int
@@ -109,6 +111,7 @@ class BoardSlotSnapshot(EntitySnapshot):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EnchantmentSnapshot(EntitySnapshot):
     id: int
+    definition_id: str
     name: str
     controller_id: PlayerId
     slot_id: int

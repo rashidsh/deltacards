@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from deltacards.actions.results import MonsterKilledResult
+from deltacards.content.registry import is_custom_content
 from deltacards.dsl.core import Predicate, TargetSelector
 from deltacards.dsl.inspection import (
     attr_of,
@@ -240,6 +241,15 @@ class SlotHasEnchantmentPredicate(Predicate):
         return f"SLOT_HAS_ENCHANTMENT({self.name})"
 
 
+@dataclass(frozen=True, slots=True, eq=False)
+class IsCustomContentPredicate(Predicate):
+    def test(self, entity: 'Entity', ctx: 'ActionContext', **kwargs) -> bool:
+        return is_custom_content(entity.base_identity[0], entity.id)
+
+    def __repr__(self) -> str:
+        return f"IS_CUSTOM_CONTENT"
+
+
 IS_MONSTER = IsTypePredicate(CardType.MONSTER)
 IS_SPELL = IsTypePredicate(CardType.SPELL)
 
@@ -274,3 +284,5 @@ ENCHANTED_SLOT = EnchantedBoardSlotPredicate(True)
 UNENCHANTED_SLOT = EnchantedBoardSlotPredicate(False)
 
 SLOT_HAS_ENCHANTMENT = lambda name: SlotHasEnchantmentPredicate(name)
+
+IS_CUSTOM_CONTENT = IsCustomContentPredicate()

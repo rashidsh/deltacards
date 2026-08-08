@@ -104,11 +104,19 @@ class Card(Entity, Generic[TTemplate]):
         self._zone = zone
         self.creator_id = creator_id
         self.creator_base_identity = creator_base_identity
-        self.base = base or BaseStats(
-            cost=self.template.cost,
-            attack=getattr(self.template, 'attack', None),
-            hp=getattr(self.template, 'hp', None),
-        )
+
+        if base is not None:
+            self.base = base
+        elif isinstance(self.template, MonsterTemplate):
+            self.base = BaseStats(
+                cost=self.template.cost,
+                attack=self.template.attack,
+                hp=self.template.hp,
+            )
+        else:
+            self.base = BaseStats(
+                cost=self.template.cost,
+            )
 
         self.keywords = self.template.keywords
         self.statuses = self.template.statuses.copy()
@@ -423,7 +431,7 @@ class Monster(Card[MonsterTemplate]):
         return self.has_keyword(CardKeyword.SILENCED)
 
     def get_ability(self, ability: Ability):
-        if self.silenced:
+        if self.silenced and (ability is not Ability.DELAY):  # TODO
             return None
 
         return super().get_ability(ability)

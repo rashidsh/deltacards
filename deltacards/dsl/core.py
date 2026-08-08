@@ -428,6 +428,7 @@ class TargetSelector(ABC, ActionMethods):
             'gold',
             'turn',
             'counter',
+            'quest_goal',
             'monster_id',
             'slot_id',
             'enchantment_id',

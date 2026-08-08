@@ -117,13 +117,7 @@ class HostedGame:
         config: ServerConfig,
     ) -> 'HostedGame':
         bot_player_id = human_player_id.opponent()
-
-        if config.game_seed_base is None:
-            game_seed_base = random.randint(0, int(2e9))
-        else:
-            game_seed_base = config.game_seed_base
-
-        seed = game_seed_base + game_id
+        seed = config.game_seed_base + game_id
 
         human_deck = cls._select_deck(
             name_or_code=config.human_deck_name,
