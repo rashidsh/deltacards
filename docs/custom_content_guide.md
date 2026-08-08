@@ -57,8 +57,8 @@ Our first card is:
 
 > **Final Knight**  
 > **Stats**: 9G / 6 ATK / 9 HP  
-> <u>Magic</u>: Deal 3 DMG to monsters adjacent to this.  
-> <u>Bullseye</u>: Gain <u>Dodge</u> (1).
+> **Magic**: Deal 3 DMG to monsters adjacent to this.  
+> **Bullseye**: Gain Dodge (1).
 
 Add the following below the import in `tutorial_cards.py`:
 
@@ -251,8 +251,8 @@ We will adapt Spider Sign's event-handler pattern to create:
 
 > **Ad Sign**  
 > **Stats**: 5G / 5 ATK / 6 HP  
-> After an enemy monster with <u>Haste</u> is summoned, it attacks this monster.  
-> <u>Magic</u>: Give all monsters in the enemy hand <u>Haste</u>.
+> After an enemy monster with Haste is summoned, it attacks this monster.  
+> **Magic**: Give all monsters in the enemy hand Haste.
 
 Add this second definition below `FinalKnight`:
 
