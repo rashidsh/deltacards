@@ -164,9 +164,9 @@ class ActionMethods:
         from deltacards.actions.standard import SwapStats
         return SwapStats(target=self._action_target)
 
-    def halve_stats(self, round_up: bool) -> 'HalveStats':
+    def halve_stats(self, round_up: bool, halve_cost: bool) -> 'HalveStats':
         from deltacards.actions.standard import HalveStats
-        return HalveStats(target=self._action_target, round_up=round_up)
+        return HalveStats(target=self._action_target, round_up=round_up, halve_cost=halve_cost)
 
     def add_keyword(self, keyword: CardKeyword) -> 'AddKeyword':
         from deltacards.actions.standard import AddKeyword

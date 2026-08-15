@@ -562,7 +562,7 @@ class GoldenMirror(Monster):
 @card(945)
 class ArcadeMewMew(Monster):
     magic = Check(FRONT(SELF) & NON_DT).to(
-        FRONT(SELF).halve_stats(round_up=False)
+        FRONT(SELF).halve_stats(round_up=True, halve_cost=False)
         >> (FRONT(SELF) >> EXACT_COPY()).summon()
     )
 
