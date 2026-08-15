@@ -29,6 +29,7 @@ __all__ = (
     'PlayerDefeatedResult',
     'GoldSpentResult',
     'AbilityTriggeredResult',
+    'EventReactionTriggeredResult',
     'BoardSlotEnchantedResult',
     'EnchantmentRemovedResult',
 )
@@ -284,6 +285,14 @@ class AbilityTriggeredResult(ActionResult):
     entity_id: PlayerId | int
     entity: EntitySnapshot
     ability: Ability
+
+
+@dataclass(slots=True, kw_only=True)
+class EventReactionTriggeredResult(ActionResult):
+    """Action-log-only presentation marker for effects returned by an event handler."""
+
+    entity_id: PlayerId | int
+    entity: EntitySnapshot
 
 
 @dataclass(slots=True, kw_only=True)

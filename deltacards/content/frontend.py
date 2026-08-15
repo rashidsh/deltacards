@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from deltacards.content.card_data import decode_source_cards
-from deltacards.content.registry import CONTENT
+from deltacards.content.registry import (
+    CONTENT,
+    enchantment_asset_name,
+    soul_frontend_name,
+)
 from deltacards.model.artifacts import (
     ARTIFACTS,
     ArtifactRarity,
@@ -166,11 +170,7 @@ def custom_artifact_view(artifact_id: int) -> dict[str, Any]:
 
 def custom_enchantment_view(enchantment_id: str) -> dict[str, Any]:
     enchantment_type = ENCHANTMENTS[enchantment_id]
-    frontend_name = CONTENT.frontend_name(
-        'enchantment',
-        enchantment_id,
-        default_name=enchantment_type.name,
-    )
+    frontend_name = enchantment_asset_name(enchantment_id)
     images = CONTENT.enchantment_images(
         enchantment_id,
         default_name=enchantment_type.name,
@@ -179,7 +179,6 @@ def custom_enchantment_view(enchantment_id: str) -> dict[str, Any]:
     result = {
         'id': enchantment_id,
         'name': frontend_name,
-        'assetName': images.asset_name,
         'backgroundUrl': images.background_url,
         'overlayUrl': images.overlay_url,
         'logUrl': images.log_url,
@@ -189,11 +188,7 @@ def custom_enchantment_view(enchantment_id: str) -> dict[str, Any]:
 
 
 def custom_soul_view(soul_id: str) -> dict[str, Any]:
-    frontend_name = CONTENT.frontend_name(
-        'soul',
-        soul_id,
-        default_name=soul_id.upper(),
-    )
+    frontend_name = soul_frontend_name(soul_id)
     image = CONTENT.image(
         'soul',
         soul_id,
@@ -203,7 +198,6 @@ def custom_soul_view(soul_id: str) -> dict[str, Any]:
     result = {
         'id': soul_id,
         'name': frontend_name,
-        'assetName': image.name,
     }
 
     if image.url is not None:

@@ -26,10 +26,11 @@ ImageRole: TypeAlias = Literal[
 ]
 ContentAssetKey: TypeAlias = tuple[ContentKind, ContentId, ImageRole]
 
+
 @dataclass(frozen=True, slots=True)
 class LocalizedText:
     name: str
-    description: str = ''
+    description: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +89,6 @@ class FrontendArtifactImages:
 
 @dataclass(frozen=True, slots=True)
 class FrontendEnchantmentImages:
-    asset_name: str
     background_url: str
     overlay_url: str
     log_url: str
@@ -97,18 +97,6 @@ class FrontendEnchantmentImages:
 def _ordinary_asset_name(name: str) -> str:
     value = name.strip().replace(' ', '_').replace('-', '_')
     return re.sub(r'[^A-Za-z0-9_-]', '', value)
-
-
-def _enchantment_asset_name(name: str) -> str:
-    if not re.search(r'[\s_-]', name):
-        return re.sub(r'[^A-Za-z0-9]', '', name)
-
-    words = re.split(r'[\s_-]+', name.strip())
-    return ''.join(
-        word[:1].upper() + word[1:]
-        for word in words
-        if word
-    )
 
 
 def _custom_asset_name(
@@ -144,12 +132,25 @@ def is_custom_content(kind: ContentKind, content_id: ContentId) -> bool:
     return CONTENT.is_custom(kind, content_id)
 
 
+def enchantment_asset_name(name: str) -> str:
+    words = re.split(r'[\s_-]+', name.strip())
+    return ''.join(
+        word[:1].upper() + word[1:]
+        for word in words
+        if word
+    )
+
+
+def soul_frontend_name(soul_id: str) -> str:
+    return soul_id.upper()
+
+
 def frontend_asset_name(kind: ContentKind, name: str) -> str:
     if kind == 'card':
         return name
 
     if kind == 'enchantment':
-        return _enchantment_asset_name(name)
+        return enchantment_asset_name(name)
 
     return _ordinary_asset_name(name)
 
@@ -439,23 +440,10 @@ class ContentRegistry:
             )
 
         return FrontendEnchantmentImages(
-            asset_name=background.name,
             background_url=background_url,
             overlay_url=overlay_url,
             log_url=log_url,
         )
-
-    def frontend_name(
-        self,
-        kind: ContentKind,
-        content_id: ContentId,
-        *,
-        default_name: str,
-    ) -> str:
-        if kind == 'enchantment':
-            return _enchantment_asset_name(default_name)
-
-        return default_name
 
     def localization_keys(
         self,
@@ -475,16 +463,15 @@ class ContentRegistry:
             )
 
         if kind == 'soul':
-            key = _kebab_case(str(content_id))
+            key = _kebab_case(soul_frontend_name(str(content_id)))
             return (
                 f'soul-{key}',
                 f'soul-{key}-desc',
             )
 
         if kind == 'enchantment':
-            presentation = self._presentations[kind, content_id]
             key = _kebab_case(
-                _enchantment_asset_name(presentation.text('en').name)
+                enchantment_asset_name(str(content_id))
             )
 
             return (
@@ -508,7 +495,7 @@ class ContentRegistry:
             )
 
             result[name_key] = text.name
-            result[description_key] = text.description
+            result[description_key] = text.description or ""
 
         return result
 

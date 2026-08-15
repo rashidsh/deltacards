@@ -3,7 +3,7 @@ from deltacards.dsl.api import *
 
 @card(91)
 class HealCard(Spell):
-    targets = ALLIES
+    targets = ALLIES | ENEMIES
 
     magic = (
         TARGET.heal(3)
@@ -16,7 +16,7 @@ class HealCard(Spell):
 
 @card(92)
 class ForceOfNature(Spell):
-    targets = ENEMIES
+    targets = ALLIES | ENEMIES
 
     hit_result: Var[StepResult] = Var(StepResult)
 

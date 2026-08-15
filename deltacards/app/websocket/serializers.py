@@ -1,7 +1,11 @@
 import json
 from typing import Any, TYPE_CHECKING
 
-from deltacards.content.registry import CONTENT
+from deltacards.content.registry import (
+    CONTENT,
+    enchantment_asset_name,
+    soul_frontend_name,
+)
 from deltacards.model.artifacts import (
     ARTIFACTS,
     Artifact,
@@ -287,14 +291,8 @@ class ViewSerializer:
     def soul_view(
         soul: Soul | SoulSnapshot,
     ) -> dict[str, Any]:
-        frontend_image = CONTENT.image(
-            'soul',
-            soul.definition_id,
-            default_name=soul.name,
-        )
-
         return {
-            'name': frontend_image.name,
+            'name': soul_frontend_name(soul.definition_id),
         }
 
     @staticmethod
@@ -342,41 +340,10 @@ class ViewSerializer:
         enchantment: Enchantment | EnchantmentSnapshot,
     ) -> dict[str, Any]:
         definition_id = enchantment.definition_id
-        frontend_name = CONTENT.frontend_name(
-            'enchantment',
-            definition_id,
-            default_name=enchantment.name,
-        )
-
-        if CONTENT.is_custom('enchantment', definition_id):
-            frontend_images = CONTENT.enchantment_images(
-                definition_id,
-                default_name=enchantment.name,
-            )
-            asset_name = frontend_images.asset_name
-
-        else:
-            frontend_images = None
-            asset_name = CONTENT.image(
-                'enchantment',
-                definition_id,
-                default_name=enchantment.name,
-            ).name
-
-        result = {
-            'name': frontend_name,
-            'assetName': asset_name,
+        return {
+            'name': enchantment_asset_name(definition_id),
             'custom': enchantment.counter,
         }
-
-        if frontend_images is not None:
-            result.update({
-                'backgroundUrl': frontend_images.background_url,
-                'overlayUrl': frontend_images.overlay_url,
-                'logUrl': frontend_images.log_url,
-            })
-
-        return result
 
     def slot_view(
         self,

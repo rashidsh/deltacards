@@ -223,6 +223,7 @@ class Reminisce(Spell):
             & IS_MONSTER
             & NON_TOKEN
             & (COST <= 9)
+            & HAS_ABILITY(DUST)
         ) >> RANDOM(3)
     ).to(
         SetVar(var=generated_card, value=CHOICE_SELECTED >> COPY())

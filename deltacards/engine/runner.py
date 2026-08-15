@@ -105,7 +105,9 @@ class GameRunner:
 
             p1.is_first_turn = (first_turn_player is PlayerId.P1)
             p2.is_first_turn = (first_turn_player is PlayerId.P2)
-            self.game.turn_player = self.game.player(first_turn_player)
+
+            self.game.first_turn_player = self.game.player(first_turn_player)
+            self.game.turn_player = self.game.first_turn_player
 
             # Setup starting Soul & Artifacts, deck and board
             for player_id in (PlayerId.P1, PlayerId.P2):

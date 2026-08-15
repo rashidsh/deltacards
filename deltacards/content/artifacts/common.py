@@ -16,7 +16,7 @@ class Reinforcement(Artifact):
     rarity = ArtifactRarity.COMMON
 
     turn_start = Check(YOU.turn % 10 == 0).to(
-        GENERATE_CARD("Draft").to_hand() * 2
+        GENERATE_CARD("Draft").to_hand() * 4
     )
 
     turn_end = Check(YOU.turn % 10 == 0).to(

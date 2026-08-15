@@ -70,7 +70,17 @@ def _localizations(
     }
 
     if localizations is not None:
-        result.update(localizations)
+        result.update({
+            locale: LocalizedText(
+                name=localization.name,
+                description=(
+                    localization.description
+                    if localization.description is not None
+                    else description
+                ),
+            )
+            for locale, localization in localizations.items()
+        })
 
     return result
 

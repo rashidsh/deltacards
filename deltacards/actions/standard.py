@@ -64,7 +64,7 @@ __all__ = (
     'SetStats', 'SetBaseStats', 'SwapStats', 'HalveStats',
     'Move', 'SwapCards',
     'Summon', 'Play', 'Cast', 'RemoveCardFromStack', 'EmitPlayResults',
-    'TriggerAbility', 'ToggleAbility',
+    'TriggerAbility', 'ToggleAbility', 'TriggerEventReaction',
     'Catch', 'ReleaseCaughtCard',
     'Erase', 'TransformCard',
     'Attack', 'CombatDamage', 'AttackAftermath', 'RefreshAttacks',
@@ -428,7 +428,7 @@ def perform_card_draw(player: 'Player', card: 'Card', reason: str, *, ctx: 'Acti
     if len(player.hand) >= 7:
         return ActionOutcome(
             success=True,
-            action_calls=[ActionCall(Overdraw(player=player, card=card), source=ctx.source), *action_calls],
+            action_calls=[*action_calls, ActionCall(Overdraw(player=player, card=card), source=ctx.source)],
         )
 
     ctx.game.move_card(card, controller_id=player.id, zone=CardZone.HAND)
@@ -1445,6 +1445,24 @@ class ToggleAbility(Action):
         return ActionOutcome(success=True, affected=[target])
 
 
+class TriggerEventReaction(Action):
+    entity: Arg['Entity'] = Arg()
+    effect: Arg[Any] = Arg(raw=True)
+
+    def execute(self, entity: Entity, effect: Any, *, ctx: ActionContext, **kwargs) -> ActionOutcome:
+        return ActionOutcome(
+            success=True,
+            action_calls=[ActionCall(effect, source=entity)],
+            presentation_results=(
+                EventReactionTriggeredResult(
+                    source_id=entity.id,
+                    entity_id=entity.id,
+                    entity=entity.to_snapshot(),
+                ),
+            ),
+        )
+
+
 class Catch(Action):
     catcher: Arg['Monster'] = Arg()
     card_to_catch: Arg['Card'] = Arg()
@@ -2070,7 +2088,7 @@ class AdvanceTurn(Action):
     def execute(self, player: 'Player', *, ctx: ActionContext, **kwargs):
         player.tribes_played_this_turn = set()
 
-        if list(ctx.game.players.values())[-1] == player:
+        if player is not ctx.game.first_turn_player:
             ctx.game.turn += 1
 
         ctx.game.turn_player = next(p for p in ctx.game.players.values() if p is not player)

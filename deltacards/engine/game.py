@@ -23,6 +23,7 @@ from deltacards.actions.standard import (
     Kill,
     ReleaseMonsterDeathFinalization,
     TriggerAbility,
+    TriggerEventReaction,
 )
 from deltacards.dsl.core import NoTargetsError, TargetSelector
 from deltacards.dsl.vars import Var
@@ -154,6 +155,7 @@ class Game:
 
         self.turn = 1
         self.turn_player: Player = None
+        self.first_turn_player: Player = None
         self.action_log: list[ActionLogRecord] = []
         self.log: list[ActionResult] = []
         self.log_by_type: dict[type[ActionResult], list[ActionResult]] = defaultdict(list)
@@ -813,7 +815,7 @@ class Game:
         for player in (self.turn_player, self.turn_player.opponent):
             yield from self._iter_event_sources_of_player(player)
 
-    def _collect_result_handlers(self, res: ActionResult) -> list[tuple[Entity, Action]]:
+    def _collect_result_handlers(self, res: ActionResult) -> list[tuple[Entity, Any]]:
         actions = []
         event_sources = list(self._iter_event_sources())
 
@@ -1207,7 +1209,7 @@ class Game:
         )
         return []
 
-    def _enqueue_effect_calls(
+    def _enqueue_event_reactions(
         self,
         effects: Sequence[tuple[Entity, Any]],
         *,
@@ -1218,7 +1220,10 @@ class Game:
     ) -> None:
         for entity, effect in reversed(effects):
             self.enqueue_actions(
-                effect,
+                TriggerEventReaction(
+                    entity=entity,
+                    effect=effect,
+                ),
                 source=entity,
                 env=env.copy(),
                 ctx=None,
@@ -1324,6 +1329,8 @@ class Game:
         if not isinstance(res, ActionOutcome):
             raise TypeError(f'{type(action).__name__}.execute() must return ActionOutcome, got {type(res).__name__}')
 
+        self.rules.invalidate()
+
         action_log_id = self.alloc_action_log_id()
         self.action_log.append(
             ActionLogRecord(
@@ -1369,7 +1376,7 @@ class Game:
         # Run handlers that should run right after the atomic action resolves (e.g. "after this attacks, do ...").
         result_handlers = self._record_action_results(res.results)
         if result_handlers:
-            self._enqueue_effect_calls(
+            self._enqueue_event_reactions(
                 result_handlers,
                 env=pending.env,
                 log_group_id=pending.log_group_id,

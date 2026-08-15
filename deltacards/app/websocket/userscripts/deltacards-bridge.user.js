@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         deltacards Bridge
-// @version      0.2.0
+// @version      0.2.2
 // @description  Connects the Undercards web client to a local deltacards engine instance for offline play and testing.
 // @author       rashidsh
 // @homepageURL  https://github.com/rashidsh/deltacards
@@ -19,25 +19,44 @@
   const PLUGIN_NAME = "deltacards Bridge";
 
   const DELTACARDS_HOST = 'localhost';
-  const DELTACARDS_PORT = 8080;
-
-  const DELTACARDS_BASE_URL = `http://${DELTACARDS_HOST}:${DELTACARDS_PORT}`;
-  const DELTACARDS_BASE_WEBSOCKET_URL = `ws://${DELTACARDS_HOST}:${DELTACARDS_PORT}`;
 
   const SETTINGS_PREFIX = `underscript.plugin.${PLUGIN_NAME}.`;
   const SETTING_DEFAULTS = {
+    serverPort: 8080,
     loadCustomContent: true,
     loadCustomContentEverywhere: false,
   };
 
+  let deltacardsPort = readPortSetting('serverPort', SETTING_DEFAULTS.serverPort);
+
+  function localHttpUrl(path) {
+    return new URL(path, `http://${DELTACARDS_HOST}:${deltacardsPort}/`);
+  }
+
+  function localWebSocketUrl(path) {
+    return new URL(path, `ws://${DELTACARDS_HOST}:${deltacardsPort}/`);
+  }
+
   /* Helper functions */
+
+  function normalizedPort(value, defaultValue) {
+    const port = Number(value);
+
+    if (
+      !Number.isInteger(port)
+      || port < 1
+      || port > 65_535
+    ) return defaultValue;
+
+    return port;
+  }
 
   async function checkStatus() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 1000);
 
     try {
-      const response = await fetch(`${DELTACARDS_BASE_URL}/check/`, {
+      const response = await fetch(localHttpUrl('/check/').href, {
         method: 'GET',
         cache: 'no-store',
         signal: controller.signal
@@ -62,6 +81,14 @@
     if (rawValue === 'false' || rawValue === '0') return false;
 
     return defaultValue;
+  }
+
+  function readPortSetting(key, defaultValue) {
+    const rawValue = localStorage.getItem(SETTINGS_PREFIX + key);
+
+    if (rawValue === null) return defaultValue;
+
+    return normalizedPort(rawValue, defaultValue);
   }
 
   function normalizedPathname() {
@@ -194,7 +221,7 @@
     }
 
     try {
-      return new URL(value, `${DELTACARDS_BASE_URL}/`).href;
+      return localHttpUrl(value).href;
     } catch {
       return null;
     }
@@ -207,7 +234,7 @@
       const parsedLocalUrl = new URL(localUrl);
 
       if (
-        parsedLocalUrl.origin === new URL(DELTACARDS_BASE_URL).origin
+        parsedLocalUrl.origin === localHttpUrl('/').origin
         && parsedLocalUrl.pathname.startsWith('/content-assets/')
       ) return parsedLocalUrl.href;
     }
@@ -276,13 +303,11 @@
       const enchantment
       of customContent.enchantments
     ) {
-      const assetName = enchantment.assetName || enchantment.name;
-
       registerAssetReplacement(
         `/images/enchants/backgrounds/${enchantment.name}.png`,
         replacementAssetUrl(
           enchantment.backgroundUrl,
-          `/images/enchants/backgrounds/${assetName}.png`
+          `/images/enchants/backgrounds/${enchantment.name}.png`
         )
       );
 
@@ -290,7 +315,7 @@
         `/images/enchants/overlays/${enchantment.name}.png`,
         replacementAssetUrl(
           enchantment.overlayUrl,
-          `/images/enchants/overlays/${assetName}.png`
+          `/images/enchants/overlays/${enchantment.name}.png`
         )
       );
 
@@ -298,19 +323,17 @@
         `/images/enchants/logs/${enchantment.name}.png`,
         replacementAssetUrl(
           enchantment.logUrl,
-          `/images/enchants/logs/${assetName}.png`
+          `/images/enchants/logs/${enchantment.name}.png`
         )
       );
     }
 
     for (const soul of customContent.souls) {
-      const assetName = soul.assetName || soul.name;
-
       registerAssetReplacement(
         `/images/souls/${soul.name}.png`,
         replacementAssetUrl(
           soul.imageUrl,
-          `/images/souls/${assetName}.png`
+          `/images/souls/${soul.name}.png`
         )
       );
     }
@@ -580,10 +603,6 @@
   }
 
   /* HTTP rewrites */
-
-  function localHttpUrl(path) {
-    return new URL(path, `${DELTACARDS_BASE_URL}/`);
-  }
 
   function classifyRequest(method, rawUrl) {
     const sourceUrl = new URL(rawUrl, location.href);
@@ -998,10 +1017,7 @@
           const localGameID = getLocalGameID();
 
           if (localGameID !== null) {
-            const localUrl = new URL(
-              `/game/${localGameID}`,
-              `${DELTACARDS_BASE_WEBSOCKET_URL}/`
-            );
+            const localUrl = localWebSocketUrl(`/game/${localGameID}`);
 
             localUrl.searchParams.set('player_id', '1');
             wsUrlArgs[0] = localUrl.href;
@@ -1160,6 +1176,60 @@
       note: "Experimental. Use with caution.",
       type: 'boolean',
       default: SETTING_DEFAULTS.loadCustomContentEverywhere,
+    });
+
+    class PortSetting extends underscript.utils.SettingType {
+      constructor(name = 'port') {
+        super(name);
+      }
+
+      value(value) {
+        return value;
+      }
+
+      encode(value) {
+        return value;
+      }
+
+      default() {
+        return SETTING_DEFAULTS.serverPort;
+      }
+
+      element(value, update) {
+        const $input = $('<input>', {
+          type: 'number',
+          class: 'form-control',
+          min: 1,
+          max: 65_535,
+          step: 1,
+          value: value,
+        }).css({
+          width: '100px',
+          display: 'inline-block',
+        }).on('change', function () {
+          update(normalizedPort(this.value, 8080));
+        });
+
+        // make label centered
+        requestAnimationFrame(() => {
+          $input.parent().css('align-items', 'center');
+        });
+
+        return $input;
+      }
+    }
+
+    settings.addType(new PortSetting());
+
+    settings.add({
+      key: 'serverPort',
+      name: "Local server port",
+      type: `${plugin.name}:port`,
+      category: "Local game",
+      default: SETTING_DEFAULTS.serverPort,
+      onChange: (value => {
+        deltacardsPort = normalizedPort(value, SETTING_DEFAULTS.serverPort);
+      }),
     });
 
     class StartButtonSetting extends underscript.utils.SettingType {

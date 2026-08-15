@@ -41,7 +41,7 @@ class Player(Entity):
         self.erased = CardContainer()
 
         self.turn = 0
-        self.gold = 0
+        self.gold = 1
         self.hp = 30
         self.max_hp = 30
         self.fatigue_counter = 0

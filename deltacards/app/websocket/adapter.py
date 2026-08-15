@@ -13,6 +13,7 @@ from deltacards.actions.results import (
     DodgeConsumedResult,
     EntityDamagedResult,
     EntityHealedResult,
+    EventReactionTriggeredResult,
     EnchantmentRemovedResult,
     MonsterKilledResult,
     MonsterSummonedResult,
@@ -1171,10 +1172,10 @@ class FrontendAdapter:
     # Ability presentation
     # ---------------------
 
-    def _ability_source_event(
+    def _effect_source_event(
         self,
         *,
-        result: AbilityTriggeredResult,
+        result: AbilityTriggeredResult | EventReactionTriggeredResult,
         record: ActionLogRecord,
         records: list[ActionLogRecord],
         viewer_id: PlayerId,
@@ -1686,9 +1687,12 @@ class FrontendAdapter:
                 ):
                     continue
 
-                if isinstance(result, AbilityTriggeredResult):
+                if isinstance(
+                    result,
+                    (AbilityTriggeredResult, EventReactionTriggeredResult),
+                ):
                     event, battle_log = (
-                        self._ability_source_event(
+                        self._effect_source_event(
                             result=result,
                             record=record,
                             records=context_records,
@@ -1734,7 +1738,10 @@ class FrontendAdapter:
             if id(result) in seen_results:
                 continue
 
-            if isinstance(result, AbilityTriggeredResult):
+            if isinstance(
+                result,
+                (AbilityTriggeredResult, EventReactionTriggeredResult),
+            ):
                 continue
 
             if (

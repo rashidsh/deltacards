@@ -799,8 +799,10 @@ def deck_from_code(text: str) -> dict:
     if text.startswith('{'):
         return json.loads(text)
 
+    padded = text + '=' * (-len(text) % 4)
+
     try:
-        return json.loads(base64.urlsafe_b64decode(text).decode('utf-8'))
+        return json.loads(base64.urlsafe_b64decode(padded).decode('utf-8'))
     except (UnicodeDecodeError, binascii.Error, json.JSONDecodeError) as exc:
         raise ValueError("Invalid deck code") from exc
 

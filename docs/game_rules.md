@@ -36,7 +36,7 @@ Cards are either:
 ## Setup and mulligan
 The starting player is chosen randomly.
 
-At the start of the game, each player has 30 HP, and each player's deck is shuffled.
+At the start of the game, each player has 30 HP, 1 gold, and each player's deck is shuffled.
 
 ### Mulligan
 Each player is shown the first three cards of their deck.

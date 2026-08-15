@@ -9,6 +9,7 @@ from deltacards.actions.results import (
     CardPlayedResult,
     CardRevealedResult,
     EntityDamagedResult,
+    EventReactionTriggeredResult,
     MonsterKilledResult,
     MonsterSummonedResult,
     PlayerDefeatedResult,
@@ -161,6 +162,9 @@ class ActionLogFormatter:
 
             ability_name = result.ability.value.title().replace('_', ' ')
             return f"[underline]{ability_name}[/underline] ability of {entity_name(result.entity)} was triggered."
+
+        if isinstance(result, EventReactionTriggeredResult):
+            return f"Reaction of {entity_name(result.entity)} was triggered."
 
         return None
 
