@@ -298,6 +298,8 @@ class Game:
             controller_id=controller_id,
         )
         new_card.copy_exact_state_from(card)
+        new_card.has_attacked = False
+        new_card.age = 0
         return new_card
 
     def remove_card_from_current_zone(self, card: Card) -> None:
