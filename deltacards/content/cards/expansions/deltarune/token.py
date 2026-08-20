@@ -623,8 +623,8 @@ class MewMewMagic(Spell):
             var=hp_before,
             value=TARGET.hp
         )
-        >> TARGET.halve_stats(round_up=True).to(  # Mew Mew Magic halves stats rounded up
-            SetVar(
+        >> TARGET.halve_stats(round_up=True, halve_cost=True).to(  # Mew Mew Magic halves stats rounded up
+            SetVar( # all of them do by default
                 var=reduced_stats,
                 value=GREATEST(
                     0,
@@ -650,7 +650,7 @@ class PinksGhost(Monster):
         if not isinstance(defender, Monster):
             return None
 
-        halve_stats = defender.actions.halve_stats(round_up=False)
+        halve_stats = defender.actions.halve_stats(round_up=True, halve_cost=True)
 
         if defender.template.rarity is CardRarity.DETERMINATION:
             return halve_stats
