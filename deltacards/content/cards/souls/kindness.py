@@ -135,7 +135,7 @@ class UltimateHeal(Spell):
         For(
             3,
             YOU.draw(card=(DECK & IS_MONSTER).first()).store_result(draw_result).to(
-                Buff(target=draw_result.card_id, cost=-1)
+                Buff(target=draw_result.card_id, hp=+2)
             )
         )
     )

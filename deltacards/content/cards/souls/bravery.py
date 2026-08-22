@@ -37,10 +37,10 @@ class RoyalSignup(Spell):
     targets = HAND
 
     magic = ForEach(
-            HAND & ~TARGET,
-            var=other_card,
-            effect=other_card.turn_into(GENERATE_CARD("Draft"))
-        )
+        HAND & ~TARGET,
+        var=other_card,
+        effect=other_card.turn_into(GENERATE_CARD("Draft"))
+    )
 
 
 @card(128)
