@@ -711,12 +711,7 @@ class Game:
             ok, _, reason = self.resolve_summon_position(player, pos)
             return ok, reason
 
-        # Spells: must have a valid target (if they require on-play targets)
         if isinstance(card, Spell):
-            if card.targets is not None:
-                if not self.play_target_options(card=card, player=player):
-                    return False, 'no_available_targets'
-
             return True, 'ok'
 
         raise ValueError(f"Card is of invalid type {type(card)}")
