@@ -62,7 +62,9 @@ python -m deltacards --p1-deck "<base64/JSON deck code>" --p2-deck "<base64/JSON
 3. Start the WebSocket server with `python -m deltacards.app.websocket`.
 4. Go to UnderScript settings → Plugins → deltacards Bridge and click the Start button.
 
-You can also specify custom decks to use when starting the server:
+You can specify custom decks to use in the plugin's settings.
+
+You can also specify custom decks when starting the server:
 ```bash
 python -m deltacards.app.websocket --human-deck "<base64/JSON deck code>" --bot-deck "<base64/JSON deck code>"
 ```

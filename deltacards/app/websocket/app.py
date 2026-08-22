@@ -50,18 +50,18 @@ class WebSocketApplication:
     @staticmethod
     def _parse_endpoint(
         game_id_text: str,
-        player_values: list[str],
+        player_id_text: str | None,
     ) -> tuple[int, PlayerId]:
         if re.fullmatch(r'[1-9][0-9]*', game_id_text) is None:
             raise FatalProtocolError(
                 f"Invalid game endpoint '/game/{game_id_text}'"
             )
 
-        if (not player_values) or player_values[0] not in ('1', '2'):
+        if player_id_text not in ('1', '2'):
             raise FatalProtocolError("player_id must be 1 or 2")
 
         game_id = int(game_id_text)
-        player_id = PlayerId(int(player_values[0]))
+        player_id = PlayerId(int(player_id_text))
 
         return game_id, player_id
 
@@ -70,13 +70,19 @@ class WebSocketApplication:
         socket: GameSocket,
         *,
         game_id_text: str,
-        player_values: list[str],
+        player_id_text: str | None,
+        human_deck_text: str | None,
+        bot_deck_text: str | None,
     ) -> None:
         try:
-            game_id, player_id = self._parse_endpoint(game_id_text, player_values)
+            game_id, player_id = self._parse_endpoint(game_id_text, player_id_text)
+            human_deck_spec = human_deck_text or None
+            bot_deck_spec = bot_deck_text or None
             hosted = await self.registry.get_or_create(
                 game_id=game_id,
                 player_id=player_id,
+                human_deck_spec=human_deck_spec,
+                bot_deck_spec=bot_deck_spec,
             )
 
         except PlayerUnavailableError:
@@ -234,13 +240,21 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         )
 
     @app.websocket('/game/{game_id}')
-    async def game_socket(websocket: WebSocket, game_id: str) -> None:
+    async def game_socket(
+        websocket: WebSocket,
+        game_id: str,
+        player_id: str | None = None,
+        human_deck: str | None = None,
+        bot_deck: str | None = None,
+    ) -> None:
         await websocket.accept()
         socket = StarletteGameSocket(websocket)
         await application.handler(
             socket,
             game_id_text=game_id,
-            player_values=websocket.query_params.getlist('player_id'),
+            player_id_text=player_id,
+            human_deck_text=human_deck,
+            bot_deck_text=bot_deck,
         )
 
     @app.get('/{asset_path:path}')
