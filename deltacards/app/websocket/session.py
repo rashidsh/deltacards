@@ -1,10 +1,8 @@
 import json
 import re
 import traceback
+from dataclasses import dataclass, field
 from typing import Any
-
-from websockets.asyncio.server import ServerConnection
-from websockets.exceptions import ConnectionClosed
 
 from deltacards.actions.results import MonsterSummonedResult, SpellCastResult
 from deltacards.actions.standard import Kill
@@ -29,6 +27,7 @@ from deltacards.model.requests import (
 )
 from deltacards.model.slots import BoardSlot
 
+from .connection import GameSocket, SocketClosed
 from .errors import (
     FatalProtocolError,
     UnsupportedFrontendRequestError,
@@ -57,6 +56,13 @@ def fatal_error_event(
             ]),
         }),
     }
+
+
+@dataclass(slots=True)
+class BufferedNetworkEvents:
+    # Outbound websocket messages are buffered and sent at once
+    events: list[dict] = field(default_factory=list)
+    broadcasts: list[tuple[GameSocket, dict]] = field(default_factory=list)
 
 
 def _parse_decimal_int(
@@ -111,7 +117,7 @@ class WebSocketSession:
     def __init__(
         self,
         *,
-        websocket: ServerConnection,
+        websocket: GameSocket,
         hosted: HostedGame,
         player_id: PlayerId,
     ):
@@ -120,6 +126,7 @@ class WebSocketSession:
         self.player_id = player_id
 
         self._stopping = False
+        self._network_buffer: BufferedNetworkEvents | None = None
 
     # ---------------------
     # Connection lifecycle
@@ -134,38 +141,43 @@ class WebSocketSession:
                 await previous.close_replaced()
 
             async with self.hosted.lock:
-                update = self.hosted.advance()
-                request = self._current_request()
+                buffer = self._begin_network_buffer()
+                try:
+                    update = self.hosted.advance()
+                    request = self._current_request()
 
-                waiting_card_range = (
-                    self._waiting_card_range_view(request)
-                    if isinstance(
-                        request,
-                        PendingChoiceRequest,
+                    waiting_card_range = (
+                        self._waiting_card_range_view(request)
+                        if isinstance(request, PendingChoiceRequest)
+                        else None
                     )
-                    else None
-                )
 
-                await self.send_event(
-                    self.hosted.adapter.connect_event(
-                        viewer_id=self.player_id,
-                        battle_logs=list(
-                            self.hosted.battle_logs[self.player_id]
-                        ),
-                        waiting_card_range=waiting_card_range,
+                    await self.send_event(
+                        self.hosted.adapter.connect_event(
+                            viewer_id=self.player_id,
+                            battle_logs=list(
+                                self.hosted.battle_logs[self.player_id]
+                            ),
+                            waiting_card_range=waiting_card_range,
+                        )
                     )
-                )
 
-                await self._emit_update(
-                    update,
-                    synchronize=False,
-                    present_request=waiting_card_range is None,
-                )
+                    await self._emit_update(
+                        update,
+                        synchronize=False,
+                        present_request=waiting_card_range is None,
+                    )
+
+                finally:
+                    self._end_network_buffer()
+
+            await self._flush_network_buffer(buffer)
 
             if self._stopping:
                 return
 
-            async for message in self.websocket:
+            while True:
+                message = await self.websocket.receive()
                 if isinstance(message, bytes):
                     raise FatalProtocolError(
                         "Binary WebSocket frames are not supported"
@@ -178,12 +190,18 @@ class WebSocketSession:
                     ):
                         return
 
-                    await self._handle_text_message(message)
+                    buffer = self._begin_network_buffer()
+                    try:
+                        await self._handle_text_message(message)
+                    finally:
+                        self._end_network_buffer()
+
+                await self._flush_network_buffer(buffer)
 
                 if self._stopping:
                     return
 
-        except ConnectionClosed:
+        except SocketClosed:
             return
 
         except UnsupportedFrontendRequestError as exc:
@@ -227,7 +245,7 @@ class WebSocketSession:
                 code=code,
                 reason=reason,
             )
-        except ConnectionClosed:
+        except SocketClosed:
             pass
 
     async def close_replaced(self) -> None:
@@ -250,7 +268,7 @@ class WebSocketSession:
                     *translation_args,
                 )
             )
-        except ConnectionClosed:
+        except SocketClosed:
             return
 
         await self._close(1008, "Protocol error")
@@ -260,7 +278,12 @@ class WebSocketSession:
     # --------------------
 
     async def send_event(self, event: dict) -> None:
-        await self.websocket.send(json_text(event))
+        buffer = self._network_buffer
+        if buffer is not None:
+            buffer.events.append(event)
+            return
+
+        await self.websocket.send_text(json_text(event))
 
     async def send_events(
         self,
@@ -268,6 +291,26 @@ class WebSocketSession:
     ) -> None:
         for event in events:
             await self.send_event(event)
+
+    def _begin_network_buffer(self) -> BufferedNetworkEvents:
+        buffer = BufferedNetworkEvents()
+        self._network_buffer = buffer
+        return buffer
+
+    def _end_network_buffer(self) -> None:
+        self._network_buffer = None
+
+    async def _flush_network_buffer(
+        self,
+        buffer: BufferedNetworkEvents,
+    ) -> None:
+        await self.send_events(buffer.events)
+
+        for socket, event in buffer.broadcasts:
+            try:
+                await socket.send_text(json_text(event))
+            except SocketClosed:
+                continue
 
     # --------------------
     # Pending requests
@@ -1160,10 +1203,21 @@ class WebSocketSession:
         }
 
         sessions = tuple(self.hosted.sessions.values())
+        buffer = self._network_buffer
+
+        if buffer is not None:
+            for session in sessions:
+                buffer.broadcasts.append((
+                    session.websocket,
+                    event,
+                ))
+
+            return
+
         for session in sessions:
             try:
                 await session.send_event(event)
-            except ConnectionClosed:
+            except SocketClosed:
                 continue
 
     async def _handle_surrender(
