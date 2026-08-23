@@ -18,26 +18,19 @@ class PowerOfFriendship(QuestArtifact):
 
     reward_cards: Var[TargetSelector] = Var(TargetSelector)
 
-    @on_event(CardPlayedResult)
-    def on_card_played(self, res: CardPlayedResult, game, **kwargs):
-        if res.player_id != self.controller_id:
-            return None
-
-        played_card = game.entity(res.card_id)
-        if not isinstance(played_card, Monster):
-            return None
-
-        if not res.has_need_condition:
-            return None
-
-        if not res.need_fulfilled:
-            return None
-
-        return (
+    on_card_played = on_event(
+        CardPlayedResult,
+        condition=EVENT.matches(
+            EVENT.player_id == SELF.controller_id,
+            IS_MONSTER,
+            EVENT.has_need_condition,
+            EVENT.need_fulfilled,
+        ),
+        effect=(
             SELF.update_artifact_counter(+1)
-            >> Check(SELF.counter >= self.quest_goal).to(
+            >> Check(SELF.counter >= SELF.quest_goal).to(
                 SetVar(
-                    var=PowerOfFriendship.reward_cards,
+                    var=reward_cards,
                     value=(
                         (
                             CARDS_PLAYED(player=YOU)
@@ -49,11 +42,12 @@ class PowerOfFriendship(QuestArtifact):
                         >> GENERATE_CARD()
                     )
                 )
-                >> PowerOfFriendship.reward_cards.add_keyword(FLOWERY_POWER)
-                >> AddToHandOrDeck(PowerOfFriendship.reward_cards)
+                >> reward_cards.add_keyword(FLOWERY_POWER)
+                >> AddToHandOrDeck(reward_cards)
                 >> SELF.toggle_artifact(False)
             )
         )
+    )
 
 
 @synthetic_card(

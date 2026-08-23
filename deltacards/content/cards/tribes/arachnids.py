@@ -40,15 +40,14 @@ class SpiderSign(Monster):
     magic = _effect
     turn_start = _effect
 
-    @on_event(MonsterSummonedResult)
-    def on_monster_summoned(self, res: MonsterSummonedResult, game, **kwargs):
-        if res.monster.controller_id != self.controller_id:
-            return None
-
-        if not res.monster.has_tribe(Tribe.ARACHNID):
-            return None
-
-        return SELF.buff(attack=+1)
+    on_monster_summoned = on_event(
+        MonsterSummonedResult,
+        condition=EVENT.matches(
+            EVENT.subject.controller_id == SELF.controller_id,
+            HAS_TRIBE(Tribe.ARACHNID),
+        ),
+        effect=SELF.buff(attack=+1)
+    )
 
 
 @card(475)

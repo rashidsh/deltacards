@@ -71,6 +71,7 @@ from deltacards.dsl.core import (
     Transform,
     ValueExpr,
 )
+from deltacards.dsl.events import EVENT
 from deltacards.dsl.discovery import DISCOVER
 from deltacards.dsl.history import (
     ABILITY_TRIGGERS,
@@ -334,6 +335,7 @@ __all__ = (
     'UNIQUE_VALUES',
 
     # Selectors
+    'EVENT',
     'SELF', 'TARGET', 'KILLER', 'ATTACKER', 'DEFENDER', 'LOOP_COPY', 'TRIGGER_CARD', 'DEATH_SLOT',
     'YOU', 'CONTROLLER', 'OPPONENT', 'TURN_PLAYER', 'ALL_PLAYERS',
 

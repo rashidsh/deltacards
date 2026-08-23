@@ -225,23 +225,21 @@ class SpiderSign
 You should find an event handler shaped like this:
 
 ```python
-    @on_event(MonsterSummonedResult)
-    def on_monster_summoned(self, res: MonsterSummonedResult, game, **kwargs):
-        if res.monster.controller_id != self.controller_id:
-            return None
-
-        if not res.monster.has_tribe(Tribe.ARACHNID):
-            return None
-
-        return SELF.buff(attack=+1)
+    on_monster_summoned = on_event(
+        MonsterSummonedResult,
+        condition=EVENT.matches(
+            EVENT.subject.controller_id == SELF.controller_id,
+            HAS_TRIBE(Tribe.ARACHNID),
+        ),
+        effect=SELF.buff(attack=+1)
+    )
 ```
 
 It basically does the following:
 
-1. listen for a Monster being summoned;
-2. check whether the summoned Monster is relevant;
-3. return `None` when nothing should happen;
-4. return an effect when all conditions match.
+1. listens for a Monster being summoned;
+2. keeps only allied Arachnid summons;
+3. gives Spider Sign +1 ATK for each matching summon.
 
 ---
 
@@ -273,15 +271,14 @@ Add this second definition below `FinalKnight`:
 class AdSign(Monster):
     magic = (OPPONENT_HAND & IS_MONSTER).add_keyword(HASTE)
 
-    @on_event(MonsterSummonedResult)
-    def on_monster_summoned(self, res: MonsterSummonedResult, game, **kwargs):
-        if res.monster.controller_id == self.controller_id:
-            return None
-
-        if not res.monster.has_keyword(HASTE):
-            return None
-
-        return RESOLVE_ENTITY(res.monster_id).force_attack(SELF)
+    on_monster_summoned = on_event(
+        MonsterSummonedResult,
+        condition=EVENT.matches(
+            EVENT.subject.controller_id != SELF.controller_id,
+            HAS_KEYWORD(HASTE),
+        ),
+        effect=RESOLVE_ENTITY(EVENT.monster_id).force_attack(SELF)
+    )
 ```
 
 Save the file and restart the simulator again.
@@ -310,118 +307,71 @@ It then gives Haste to these monsters:
 .add_keyword(HASTE)
 ```
 
-## Listening for events
+## Declaring the summon reaction
 
-```python
-@on_event(MonsterSummonedResult)
-```
-
-This tells the game to call the method below after a monster is summoned.
-
-The method name:
+This class attribute registers the reaction:
 
 ```python
 on_monster_summoned
 ```
 
-is chosen for readability. The `@on_event(...)` line is what connects it to the summon event.
+The name is chosen for readability.
+The `on_event(MonsterSummonedResult, ...)` call connects it to Monster summon results.
 
-## Ignoring allied Monsters
+## Filtering events
 
-```python
-if res.monster.controller_id == self.controller_id:
-    return None
-```
-
-This compares the summoned Monster's controller with Ad Sign's controller.
-
-If they are the same, the summoned Monster is an ally. Returning `None` means:
-
-> This event does not cause Ad Sign to do anything.
-
-## Checking for Haste
+The condition is:
 
 ```python
-if not res.monster.has_keyword(HASTE):
-    return None
+        condition=EVENT.matches(
+            EVENT.subject.controller_id != SELF.controller_id,
+            HAS_KEYWORD(HASTE),
+        ),
 ```
 
-If the enemy Monster does not have Haste, the handler stops.
+`EVENT.matches(...)` starts from the event's primary snapshot.
+For `MonsterSummonedResult`, that subject is the summoned Monster.
 
-At this point, any Monster that reaches the final `return` is:
+It applies two filters:
 
-- an enemy Monster;
-- currently marked with Haste.
+- its controller must be different from Ad Sign's controller;
+- it must have Haste.
 
-## Forcing the attack
+## Resolving the forced attack
+
+The matching effect is:
 
 ```python
-return RESOLVE_ENTITY(res.monster_id).force_attack(SELF)
+effect=RESOLVE_ENTITY(EVENT.monster_id).force_attack(SELF)
 ```
 
-The summon result contains a snapshot of the summoned Monster:
+`EVENT.monster_id` reads the summoned Monster's runtime ID from the event.
+`RESOLVE_ENTITY(...)` looks up the current live Monster when the effect resolves.
+
+`.force_attack(SELF)` makes that live Monster attack Ad Sign.
+If the Monster is no longer available, the forced attack fails normally.
+
+## Event snapshots, live entities, and `SELF`
+
+`EVENT` uses one namespace for all information associated with the current event:
+
+- `EVENT.subject` selects the event's primary snapshot;
+- `EVENT.<field>` reads a result field or nested value;
+- `EVENT.select('field')` selects another snapshot or Entity field (it becomes a selector, and standard selector operations can be used on it).
+
+For this reaction:
 
 ```python
-res.monster
+EVENT.subject.controller_id
+EVENT.matches(HAS_KEYWORD(HASTE))
+EVENT.monster_id
 ```
 
-A snapshot is a saved, read-only description of the Monster at the time it was summoned.
-It is useful for reading event information, such as checking who controlled the Monster or whether it had Haste:
+The snapshot preserves the Monster's state from when the summon result was created.
+Another reaction may move, damage, or destroy the live Monster afterward.
 
-```python
-res.monster.controller_id
-res.monster.has_keyword(HASTE)
-```
-
-However, a snapshot is not the live Monster in the current game state.
-
-Other reactions may change the Monster before Ad Sign's returned effect resolves.
-For example, another Monster might have an ability such as:
-
-> After an enemy monster is summoned, deal 1 DMG to it.
-
-That ability could change the summoned Monster after the snapshot was created.
-It could also damage, move, or destroy the Monster.
-
-```python
-RESOLVE_ENTITY(res.monster_id)
-```
-
-looks up the current live Monster using the runtime ID stored in the result.
-
-Finally:
-
-```python
-.force_attack(SELF)
-```
-
-makes that live Monster attack Ad Sign.
-If the Monster is no longer available when the effect resolves, the forced attack fails normally.
-
-## `self` versus `SELF`
-
-These names look similar but have different purposes.
-
-Lowercase `self`:
-
-```python
-self.controller_id
-```
-
-is the ordinary Python object available while the event handler is being called.
-
-Uppercase `SELF`:
-
-```python
-.force_attack(SELF)
-```
-
-is a card-definition selector. It means "the entity whose returned effect is resolving."
-
-A useful rule is:
-
-- use lowercase `self` when checking ordinary values inside a Python method;
-- use uppercase `SELF` when building an effect that will resolve afterward.
+Resolving the recorded ID using `RESOLVE_ENTITY()` ensures that the effect acts on the current live Monster.
+`SELF` means the Ad Sign whose reaction is resolving.
 
 ## Expected gameplay result
 

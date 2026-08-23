@@ -1,5 +1,5 @@
 from abc import ABC, ABCMeta
-from typing import Any, Iterable, TYPE_CHECKING, Type
+from typing import Any, Iterable, TYPE_CHECKING
 
 from deltacards.actions.methods import ActionProxy
 from deltacards.engine.modifiers import IntModifier
@@ -9,6 +9,48 @@ from deltacards.model.types import BaseIdentity
 if TYPE_CHECKING:
     from deltacards.actions.results import ActionResult
     from deltacards.engine.game import Game
+
+
+_MISSING_EVENT_EFFECT = object()
+
+
+class EventHandler:
+    __slots__ = 'result_type', 'effect', 'condition', 'function'
+
+    def __init__(
+        self,
+        result_type: type['ActionResult'],
+        *,
+        effect: Any = _MISSING_EVENT_EFFECT,
+        condition: Any = True,
+        function: Any | None = None,
+    ):
+        self.result_type = result_type
+        self.effect = effect
+        self.condition = condition
+        self.function = function
+
+    def __call__(self, function):
+        if self.effect is not _MISSING_EVENT_EFFECT:
+            raise TypeError("`on_event()` with `effect` provided cannot be used to decorate a function")
+
+        if not callable(function):
+            raise TypeError("`on_event()` decorator `effect` must be callable")
+
+        return EventHandler(
+            self.result_type,
+            condition=self.condition,
+            function=function,
+        )
+
+    def __set_name__(self, owner, name):
+        if (self.function is None) and (self.effect is _MISSING_EVENT_EFFECT):
+            raise TypeError("`on_event()` used as a class attribute requires an effect")
+
+        owner.post_event_handlers.setdefault(self.result_type, []).append(self)
+
+        if self.function is not None:
+            setattr(owner, name, self.function)
 
 
 class EntityMeta(ABCMeta):
@@ -78,14 +120,15 @@ class Entity(ABC, metaclass=EntityMeta):
         raise NotImplementedError
 
 
-def on_event(action: Type['ActionResult']):
-    class OnEvent:
-        def __init__(self, function):
-            self.function = function
-
-        def __set_name__(self, owner, name):
-            owner.post_event_handlers[action] = self.function
-
-            setattr(owner, name, self.function)
-
-    return OnEvent
+def on_event(
+    action: type['ActionResult'],
+    effect: Any = _MISSING_EVENT_EFFECT,
+    *,
+    condition: Any = True,
+) -> EventHandler:
+    """Create either a callback decorator or a declarative event handler."""
+    return EventHandler(
+        action,
+        effect=effect,
+        condition=condition,
+    )

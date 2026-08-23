@@ -135,16 +135,14 @@ class LaggyTV(Monster):
             apply=lambda cost, q: cost + 1,
         )
 
-    @on_event(MonsterSummonedResult)
-    def on_monster_summoned(self, res: MonsterSummonedResult, game, **kwargs):
-        if not res.is_played:
-            return None
-
-        monster = game.entity(res.monster_id)
-        if monster.controller_id != self.controller_id:
-            return None
-
-        return monster.actions.buff(attack=+1, hp=+2)
+    on_monster_summoned = on_event(
+        MonsterSummonedResult,
+        condition=EVENT.matches(
+            EVENT.is_played,
+            EVENT.subject.controller_id == SELF.controller_id,
+        ),
+        effect=RESOLVE_ENTITY(EVENT.monster_id).buff(attack=+1, hp=+2)
+    )
 
 
 def test_card_laggytv():

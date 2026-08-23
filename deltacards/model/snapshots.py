@@ -1,7 +1,16 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from deltacards.model.enums import CardKeyword, CardStatusId, CardToggleableAbility, CardType, CardZone, PlayerId, Tribe
+from deltacards.model.enums import (
+    Ability,
+    CardKeyword,
+    CardStatusId,
+    CardToggleableAbility,
+    CardType,
+    CardZone,
+    PlayerId,
+    Tribe,
+)
 from deltacards.model.types import BaseIdentity
 
 if TYPE_CHECKING:
@@ -40,12 +49,19 @@ class CardSnapshot(EntitySnapshot):
     cost: int
 
     @property
+    def type(self) -> CardType:
+        raise NotImplementedError
+
+    @property
     def is_generated(self) -> bool:
         return self.creator_id is not None
 
     @property
     def silenced(self) -> bool:
         return False
+
+    def has_ability(self, ability: Ability) -> bool:
+        return ability in self.template.abilities
 
     def has_keyword(self, keyword: CardKeyword) -> bool:
         return keyword in self.keywords
@@ -71,13 +87,19 @@ class MonsterSnapshot(CardSnapshot):
     max_hp: int
 
     @property
+    def type(self) -> CardType:
+        return CardType.MONSTER
+
+    @property
     def silenced(self) -> bool:
         return self.has_keyword(CardKeyword.SILENCED)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SpellSnapshot(CardSnapshot):
-    pass
+    @property
+    def type(self) -> CardType:
+        return CardType.SPELL
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

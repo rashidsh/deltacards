@@ -810,8 +810,11 @@ class Game:
         for player in (self.turn_player, self.turn_player.opponent):
             yield from self._iter_event_sources_of_player(player)
 
-    def _collect_result_handlers(self, res: ActionResult) -> list[tuple[Entity, Any]]:
-        actions = []
+    def _collect_result_handlers(
+        self,
+        res: ActionResult,
+    ) -> list[tuple[Entity, Any, ActionResult]]:
+        reactions = []
         event_sources = list(self._iter_event_sources())
 
         if isinstance(res, AttackResolvedResult):
@@ -833,16 +836,31 @@ class Game:
                 continue
 
             event_handlers = entity.post_event_handlers
-            for res_class, event_handler in event_handlers.items():
-                if isinstance(res, res_class):
-                    actions_to_append = event_handler(entity, res, game=self)
-                    if actions_to_append is not None:
-                        actions.append((entity, actions_to_append))
+            for res_class, handlers in event_handlers.items():
+                if not isinstance(res, res_class):
+                    continue
 
-        return actions
+                for event_handler in handlers:
+                    event_ctx = ActionContext(
+                        game=self,
+                        source=entity,
+                        env={'event_result': res},
+                    )
+                    if not bool(evaluate_expr(event_handler.condition, ctx=event_ctx)):
+                        continue
 
-    def _record_action_results(self, results: Sequence[ActionResult]) -> list[tuple[Entity, Any]]:
-        handlers: list[tuple[Entity, Any]] = []
+                    if event_handler.function is not None:
+                        effect = event_handler.function(entity, res, game=self)
+                    else:
+                        effect = event_handler.effect
+
+                    if effect is not None:
+                        reactions.append((entity, effect, res))
+
+        return reactions
+
+    def _record_action_results(self, results: Sequence[ActionResult]) -> list[tuple[Entity, Any, ActionResult]]:
+        handlers: list[tuple[Entity, Any, ActionResult]] = []
         for r in results:
             r.id = self._next_action_result_id
             self._next_action_result_id += 1
@@ -1206,21 +1224,24 @@ class Game:
 
     def _enqueue_event_reactions(
         self,
-        effects: Sequence[tuple[Entity, Any]],
+        effects: Sequence[tuple[Entity, Any, ActionResult]],
         *,
         env: dict[str, Any],
         log_group_id: int,
         log_parent_id: int,
         log_depth: int,
     ) -> None:
-        for entity, effect in reversed(effects):
+        for entity, effect, result in reversed(effects):
+            reaction_env = env.copy()
+            reaction_env['event_result'] = result
+
             self.enqueue_actions(
                 TriggerEventReaction(
                     entity=entity,
                     effect=effect,
                 ),
                 source=entity,
-                env=env.copy(),
+                env=reaction_env,
                 ctx=None,
                 log_group_id=log_group_id,
                 log_parent_id=log_parent_id,

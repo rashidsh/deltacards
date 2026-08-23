@@ -51,20 +51,15 @@ class Reverberation(Artifact):
     name = "Reverberation"
     rarity = ArtifactRarity.LEGENDARY
 
-    @on_event(MonsterSummonedResult)
-    def on_monster_summoned(self, res: MonsterSummonedResult, game, **kwargs):
-        if not res.is_played:
-            return None
-
-        if res.monster.controller_id != self.controller_id:
-            return None
-
-        monster = game.entity(res.monster.id)
-
-        if not monster.has_ability(Ability.TURBO):
-            return None
-
-        return monster.actions.trigger_ability(TURBO)
+    on_monster_summoned = on_event(
+        MonsterSummonedResult,
+        condition=EVENT.matches(
+            EVENT.is_played,
+            EVENT.subject.controller_id == SELF.controller_id,
+            HAS_ABILITY(TURBO),
+        ),
+        effect=RESOLVE_ENTITY(EVENT.monster_id).trigger_ability(TURBO)
+    )
 
 
 def test_reverberation():
@@ -83,18 +78,17 @@ class SeamsSeap(Artifact):
     generated_card: Var[TargetSelector] = Var(TargetSelector)
     last_counter_turn: StateVar[int | None] = StateVar(default=None)
 
-    @on_event(CardPlayedResult)
-    def on_card_played(self, res: CardPlayedResult, game, **kwargs):
-        if res.player_id != self.controller_id:
-            return None
-
-        if game.players[self.controller_id].gold != 0:
-            return None
-
-        return OncePerTurn(
-            self.last_counter_turn,
-            SELF.update_artifact_counter(+1),
+    on_card_played = on_event(
+        CardPlayedResult,
+        condition=EVENT.matches(
+            EVENT.player_id == SELF.controller_id,
+            YOU.gold == 0,
+        ),
+        effect=OncePerTurn(
+            last_counter_turn,
+            SELF.update_artifact_counter(+1)
         )
+    )
 
     turn_start = Check(SELF.counter >= 2).to(
         SELF.update_artifact_counter(-2)

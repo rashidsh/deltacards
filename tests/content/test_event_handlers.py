@@ -12,15 +12,14 @@ from ..rig import TestRig
 )
 class KnightKnight(Monster):
     # After this attacks and survives, heal this by the amount of DMG dealt.
-    @on_event(AttackResolvedResult)
-    def on_attack_resolved(self, res: AttackResolvedResult, game, **kwargs):
-        if res.attacker_id != self.id:
-            return None
-
-        if res.attacker_dead:
-            return None
-
-        return SELF.heal(res.damage_to_defender)
+    on_attack_resolved = on_event(
+        AttackResolvedResult,
+        condition=EVENT.matches(
+            EVENT.attacker_id == SELF.id,
+            ~EVENT.attacker_dead,
+        ),
+        effect=SELF.heal(EVENT.damage_to_defender)
+    )
 
 
 def test_card_knightknight():
@@ -61,18 +60,15 @@ class Papyrus(Monster):
         SELF.add_keyword(ARMOR)
     )
 
-    @on_event(AttackResolvedResult)
-    def on_attack_resolved(self, res: AttackResolvedResult, game: Game, **kwargs):
-        if res.attacker_id != self.id:
-            return None
-
-        if res.attacker_dead:
-            return None
-
-        if not res.defender_dead:
-            return None
-
-        return SELF.refresh_attacks()
+    on_attack_resolved = on_event(
+        AttackResolvedResult,
+        condition=EVENT.matches(
+            EVENT.attacker_id == SELF.id,
+            ~EVENT.attacker_dead,
+            EVENT.defender_dead,
+        ),
+        effect=SELF.refresh_attacks()
+    )
 
 
 def test_papyrus():

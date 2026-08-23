@@ -44,21 +44,18 @@ class ScatteringDust(Enchantment):
     name = "Scattering Dust"
     initial_counter = 2
 
-    @on_event(MonsterKilledResult)
-    def on_monster_killed(self, res: MonsterKilledResult, game, **kwargs):
-        if res.monster.slot_id != self.slot_id:
-            return None
-
-        if res.monster.template.name == "Pile of Dust":
-            return None
-
-        if game.turn_player.id == self.controller_id:
-            return None
-
-        return (
-            GENERATE_CARD("Pile of Dust").summon(pos=res.monster.pos)
+    on_monster_killed = on_event(
+        MonsterKilledResult,
+        condition=EVENT.matches(
+            EVENT.subject.slot_id == SELF.slot_id,
+            EVENT.subject.template_name != "Pile of Dust",
+            TURN_PLAYER.id != SELF.controller_id,
+        ),
+        effect=(
+            GENERATE_CARD("Pile of Dust").summon(pos=EVENT.subject.pos)
             >> _lose_counter_and_expire_at_zero()
         )
+    )
 
 
 @synthetic_card(
@@ -209,18 +206,17 @@ class TheFlame(Enchantment):
 
     turn_end = YOU.hit(2)
 
-    @on_event(MonsterSummonedResult)
-    def on_monster_summoned(self, res: MonsterSummonedResult, game, **kwargs):
-        if not res.is_played:
-            return None
-
-        if res.monster.slot_id != self.slot_id:
-            return None
-
-        return (
-            RESOLVE_ENTITY(res.monster_id).hit(2)
+    on_monster_summoned = on_event(
+        MonsterSummonedResult,
+        condition=EVENT.matches(
+            EVENT.is_played,
+            EVENT.subject.slot_id == SELF.slot_id,
+        ),
+        effect=(
+            RESOLVE_ENTITY(EVENT.monster_id).hit(2)
             >> SELF.expire_enchantment()
         )
+    )
 
 
 @synthetic_card(
