@@ -1,5 +1,4 @@
 from deltacards.dsl.api import *
-from deltacards.model.artifacts import Artifact, ArtifactRarity, artifact
 
 from ..rig import TestRig
 

@@ -2,7 +2,7 @@ import random
 import types
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generator, Sequence, TypeVar
+from typing import Any, Callable, Generator, Sequence, TYPE_CHECKING, TypeVar
 
 from deltacards.actions.base import (
     Action,
@@ -48,6 +48,9 @@ from deltacards.model.slots import BoardSlot
 from deltacards.model.types import BaseIdentity
 
 T = TypeVar('T')
+
+if TYPE_CHECKING:
+    from deltacards.content.catalog import ContentCatalog
 
 
 @dataclass(slots=True)
@@ -118,7 +121,13 @@ class DamageApplyResult:
 
 
 class Game:
-    def __init__(self, players: tuple[Player, Player], *, seed: int | None = None):
+    def __init__(
+        self,
+        players: tuple[Player, Player],
+        *,
+        content: 'ContentCatalog',
+        seed: int | None = None,
+    ):
         if len(players) != 2:
             raise ValueError("Game requires exactly 2 players")
 
@@ -126,6 +135,8 @@ class Game:
         for player in players:
             player.game = self
             player.opponent = next(other for other in players if other.id != player.id)
+
+        self.content = content
 
         # Random
         if seed is None:
@@ -253,6 +264,7 @@ class Game:
         card_id = self.alloc_entity_id()
         card = create_card(
             id=card_id,
+            content=self.content,
             template_id=template_id,
             controller_id=controller_id,
             zone=zone,

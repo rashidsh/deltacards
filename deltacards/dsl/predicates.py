@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from deltacards.actions.results import MonsterKilledResult
-from deltacards.content.registry import is_custom_content
 from deltacards.dsl.core import Predicate, TargetSelector
 from deltacards.dsl.inspection import (
     attr_of,
@@ -16,8 +15,8 @@ from deltacards.dsl.inspection import (
     tribes_of,
 )
 from deltacards.dsl.values import RARITY
-from deltacards.model.cards import Card, CardBuffs
-from deltacards.model.enchantments import ENCHANTMENTS
+from deltacards.model.cards import Card
+from deltacards.model.entity import Entity
 from deltacards.model.enums import (
     Ability,
     CardKeyword,
@@ -33,7 +32,6 @@ from deltacards.model.templates import CardTemplate
 
 if TYPE_CHECKING:
     from deltacards.actions.standard import ActionContext
-    from deltacards.model.entity import Entity
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -235,7 +233,7 @@ class SlotHasEnchantmentPredicate(Predicate):
         if enchantment is None:
             return False
 
-        return type(enchantment) is ENCHANTMENTS[self.name]
+        return type(enchantment) is ctx.game.content.enchantments.get(self.name)
 
     def __repr__(self) -> str:
         return f"SLOT_HAS_ENCHANTMENT({self.name})"
@@ -243,8 +241,13 @@ class SlotHasEnchantmentPredicate(Predicate):
 
 @dataclass(frozen=True, slots=True, eq=False)
 class IsCustomContentPredicate(Predicate):
-    def test(self, entity: 'Entity', ctx: 'ActionContext', **kwargs) -> bool:
-        return is_custom_content(entity.base_identity[0], entity.id)
+    def test(self, entity: Entity | CardTemplate, ctx: 'ActionContext', **kwargs) -> bool:
+        if isinstance(entity, (Entity, CardTemplate)):
+            identity = entity.base_identity
+        else:
+            return False
+
+        return ctx.game.content.is_custom(*identity)
 
     def __repr__(self) -> str:
         return f"IS_CUSTOM_CONTENT"

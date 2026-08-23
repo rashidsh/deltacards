@@ -1,9 +1,4 @@
 from deltacards.dsl.api import *
-from deltacards.model.artifacts import (
-    ArtifactRarity,
-    QuestArtifact,
-    artifact,
-)
 
 from ..card_templates import synthetic_card
 from ..rig import TestRig

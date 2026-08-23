@@ -1,5 +1,4 @@
 from deltacards.dsl.api import *
-from deltacards.model.souls import Soul, soul
 
 from ..rig import TestRig
 

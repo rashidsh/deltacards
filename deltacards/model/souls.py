@@ -1,28 +1,12 @@
-from typing import ClassVar
+from typing import ClassVar, TYPE_CHECKING
 
-from deltacards.actions.standard import *
 from deltacards.model.entity import Entity
 from deltacards.model.enums import PlayerId
 from deltacards.model.snapshots import SoulSnapshot
 from deltacards.model.types import BaseIdentity
 
-SOULS: dict[str, type['Soul']] = {}
-
-
-def soul(soul_id: str):
-    def wrapper(class_: type['Soul']):
-        if soul_id in SOULS:
-            raise ValueError(f"Soul with ID {soul_id} already exists")
-
-        class_.definition_id = soul_id
-
-        if 'name' not in class_.__dict__:
-            class_.name = class_.__name__.upper()
-
-        SOULS[soul_id] = class_
-        return class_
-
-    return wrapper
+if TYPE_CHECKING:
+    from deltacards.actions.base import ActionContext
 
 
 class Soul(Entity):
@@ -40,7 +24,7 @@ class Soul(Entity):
     def __str__(self):
         return self.name
 
-    def _get_controller(self, ctx: ActionContext):
+    def _get_controller(self, ctx: 'ActionContext'):
         return ctx.game.player(self.controller_id)
 
     @property

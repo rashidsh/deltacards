@@ -8,9 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import QueryParams
 from starlette.responses import Response
 
-from deltacards.content.frontend import FrontendContentCatalog
-from deltacards.content.loader import SOURCE_CARDS_JSON, load
-from deltacards.content.registry import CONTENT
+from deltacards.content.catalog import ContentCatalog
+from deltacards.content.loader import load
 from deltacards.model.enums import PlayerId
 
 from .config import ServerConfig
@@ -41,11 +40,13 @@ def deck_error_response(translation_key: str) -> dict:
 class WebSocketApplication:
     def __init__(
         self,
+        catalog: ContentCatalog,
         config: ServerConfig | None = None,
     ):
+        self.catalog = catalog
         self.config = config or ServerConfig()
-        self.registry = GameRegistry(self.config)
-        self.frontend_content = FrontendContentCatalog.build(SOURCE_CARDS_JSON)
+        self.registry = GameRegistry(self.config, catalog)
+        self.frontend_content = catalog.frontend
 
     @staticmethod
     def _parse_endpoint(
@@ -164,7 +165,7 @@ class WebSocketApplication:
                 return deck_error_response('decks-error-card-not-owned')
 
             response_card = dict(card)
-            response_card['shiny'] = query.get('isShiny', ['false'])[0].lower() == 'true'
+            response_card['shiny'] = query.get('isShiny', 'false').lower() == 'true'
 
             return {
                 'soul': soul,
@@ -173,7 +174,7 @@ class WebSocketApplication:
 
         if action == 'addArtifact':
             try:
-                artifact_id = int(query['idArtifact'][0])
+                artifact_id = int(query['idArtifact'])
             except (KeyError, IndexError, ValueError):
                 return deck_error_response('decks-error-artifact-not-owned')
 
@@ -191,9 +192,8 @@ class WebSocketApplication:
 
 
 def create_app(config: ServerConfig | None = None) -> FastAPI:
-    load()
-
-    application = WebSocketApplication(config)
+    catalog = load()
+    application = WebSocketApplication(catalog, config)
 
     app = FastAPI()
     app.add_middleware(
@@ -231,7 +231,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
             if value
         ]
         locale = locale_values[0] if locale_values else 'en'
-        return json_response(CONTENT.localization_entries(locale))
+        return json_response(application.catalog.presentation.localization_entries(locale))
 
     @app.get('/decks-config/')
     async def decks_config(request: Request) -> Response:
@@ -259,7 +259,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
 
     @app.get('/{asset_path:path}')
     async def content_asset(asset_path: str) -> Response:
-        asset = CONTENT.asset_at_url(f'/{asset_path}')
+        asset = application.catalog.presentation.asset_at_url(f'/{asset_path}')
         if asset is None:
             return Response(status_code=404)
 

@@ -10,20 +10,6 @@ if TYPE_CHECKING:
     from deltacards.actions.standard import ActionContext
     from deltacards.model.player import Player
 
-ARTIFACTS: dict[int, type['Artifact']] = {}
-
-
-def artifact(artifact_id: int):
-    def wrapper(class_: type['Artifact']):
-        if artifact_id in ARTIFACTS:
-            raise ValueError(f"Artifact with ID {artifact_id} already exists")
-
-        class_.definition_id = artifact_id
-        ARTIFACTS[artifact_id] = class_
-        return class_
-
-    return wrapper
-
 
 class ArtifactRarity(Enum):
     BASE = 'base'

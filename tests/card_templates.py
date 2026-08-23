@@ -1,9 +1,12 @@
-from deltacards.content.library import LIBRARY
+import sys
+from types import ModuleType
+
+from deltacards.content.catalog import ContentBuilder, ContentCatalog
+from deltacards.content.decorators import card as register_card
 from deltacards.model.cards import (
     Card,
     Monster,
     Spell,
-    card as register_card,
 )
 from deltacards.model.enums import (
     Ability,
@@ -62,7 +65,7 @@ def synthetic_card(
             ),
             keywords=keywords,
             statuses=dict(statuses or {}),
-            active_abilities=set(active_abilities or ()),
+            active_abilities=frozenset(active_abilities or ()),
             expansion=expansion,
             tribes=tribes,
             soul_id=soul_id,
@@ -94,8 +97,24 @@ def synthetic_card(
     return wrapper
 
 
-def load_test_templates() -> None:
-    LIBRARY.set_templates(TEST_CARD_TEMPLATES.values())
+def _test_modules() -> tuple[ModuleType, ...]:
+    return tuple(
+        module
+        for module_name, module in sorted(sys.modules.items())
+        if (
+            isinstance(module, ModuleType)
+            and (module_name == 'tests' or module_name.startswith('tests.'))
+        )
+    )
+
+
+def build_test_catalog() -> ContentCatalog:
+    builder = ContentBuilder(
+        card_templates=TEST_CARD_TEMPLATES.values(),
+        source_cards=[],
+    )
+    builder.add_modules(_test_modules())
+    return builder.finalize()
 
 
 # Dummy is defined here as it is the default test "filler" card
@@ -109,7 +128,7 @@ add_test_template(
         abilities=frozenset(),
         keywords=CardKeyword.NONE,
         statuses={},
-        active_abilities=set(),
+        active_abilities=frozenset(),
         expansion=Expansion.BASE,
         tribes=(),
         soul_id=None,

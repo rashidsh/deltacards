@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Literal, TYPE_CHECKING
 
-from deltacards.content.library import LIBRARY
 from deltacards.dsl.core import TargetSelector, TargetingError, Transform, ValueExpr, to_value
 from deltacards.dsl.inspection import _MISSING, card_id_of, template_id_of
 from deltacards.dsl.selectors import CARD_BY_NAME, SELF, YOU
@@ -372,7 +371,7 @@ class AsTemplatesTransform(Transform):
 
                 seen_template_ids.add(template_id)
 
-            result.append(LIBRARY.get(template_id))
+            result.append(ctx.game.content.cards.get(template_id))
 
         return result
 

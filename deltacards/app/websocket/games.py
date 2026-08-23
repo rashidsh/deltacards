@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from deltacards.ai import AIGameController
 from deltacards.ai.simple import SimpleAI
+from deltacards.content.catalog import ContentCatalog
 from deltacards.engine.constants import BEGINNER_DECKS
 from deltacards.engine.game import Game
 from deltacards.engine.runner import GameRunner, StepListener
@@ -116,6 +117,7 @@ class HostedGame:
         game_id: int,
         human_player_id: PlayerId,
         config: ServerConfig,
+        content: ContentCatalog,
         human_deck_spec: str | None = None,
         bot_deck_spec: str | None = None,
     ) -> 'HostedGame':
@@ -160,7 +162,7 @@ class HostedGame:
             for player_id in (PlayerId.P1, PlayerId.P2)
         )
 
-        game = Game(players, seed=seed)
+        game = Game(players, content=content, seed=seed)
         runner = GameRunner(game)
 
         controller = AIGameController(
@@ -251,8 +253,13 @@ class HostedGame:
 
 
 class GameRegistry:
-    def __init__(self, config: ServerConfig):
+    def __init__(
+        self,
+        config: ServerConfig,
+        content: ContentCatalog,
+    ):
         self.config = config
+        self.content = content
         self._games: dict[int, HostedGame] = {}
         self._lock = asyncio.Lock()
 
@@ -272,6 +279,7 @@ class GameRegistry:
                     game_id=game_id,
                     human_player_id=player_id,
                     config=self.config,
+                    content=self.content,
                     human_deck_spec=human_deck_spec,
                     bot_deck_spec=bot_deck_spec,
                 )

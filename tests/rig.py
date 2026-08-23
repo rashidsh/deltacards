@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Sequence
 
+from deltacards.content.decorators import soul
 from deltacards.model.enums import PlayerId
 from deltacards.engine.game import Game
 from deltacards.engine.runner import EngineUpdate, GameRunner
@@ -9,9 +10,9 @@ from deltacards.model.entity import Entity
 from deltacards.model.player import Player
 from deltacards.model.requests import Attack, ChoiceResponse, EndTurn, MulliganResponse, PendingChoiceRequest, \
     PendingMulliganRequest, PendingPlayerActionRequest, PlayMonster, PlaySpell, PlayerActionResponse
-from deltacards.model.souls import Soul, soul
+from deltacards.model.souls import Soul
 
-from .card_templates import load_test_templates
+from .card_templates import build_test_catalog
 
 
 @soul('EMPTY')
@@ -220,7 +221,7 @@ class TestRig:
         starting_gold: int = 100,
         auto_mulligan: bool = True,
     ) -> 'TestRig':
-        load_test_templates()
+        content = build_test_catalog()
 
         cfg = RigConfig(
             soul_id=soul_id,
@@ -252,7 +253,7 @@ class TestRig:
         p1.gold = cfg.starting_gold - 1  # first turn gives 1 gold
         p2.gold = cfg.starting_gold
 
-        game = Game((p1, p2), seed=123)
+        game = Game((p1, p2), content=content, seed=123)
         runner = GameRunner(game, no_initial_shuffle=True)
 
         rig = cls(game=game, runner=runner, config=cfg)

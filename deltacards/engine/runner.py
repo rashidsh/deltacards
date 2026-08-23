@@ -12,7 +12,6 @@ from deltacards.actions.standard import (
 from deltacards.actions.standard import Attack as AttackAction
 from deltacards.engine.action_log import ActionLogRecord
 from deltacards.engine.game import Game
-from deltacards.model.artifacts import ARTIFACTS
 from deltacards.model.cards import CardZone, Monster, Spell
 from deltacards.model.containers import Deck
 from deltacards.model.enums import Ability, PlayerId
@@ -23,7 +22,6 @@ from deltacards.model.requests import (
     PlayMonster, PlaySpell, PlayerAction, PlayerActionResponse,
 )
 from deltacards.model.slots import BoardSlot
-from deltacards.model.souls import SOULS
 
 
 def compile_player_action(action: PlayerAction, game: Game, player_id: PlayerId) -> tuple[bool, str, Action | None]:
@@ -114,11 +112,18 @@ class GameRunner:
                 player = self.game.player(player_id)
                 player.board_slots = []
 
-                player.soul = SOULS[player.starting_soul_id](id=self.game.alloc_entity_id(), controller_id=player_id)
+                soul_type = self.game.content.souls[player.starting_soul_id]
+                player.soul = soul_type(
+                    id=self.game.alloc_entity_id(),
+                    controller_id=player_id,
+                )
                 self.game.register_entity(player.soul, entity_id=player.soul.id)
 
                 player.artifacts = [
-                    ARTIFACTS[artifact_id](id=self.game.alloc_entity_id(), controller_id=player_id)
+                    self.game.content.artifacts[artifact_id](
+                        id=self.game.alloc_entity_id(),
+                        controller_id=player_id,
+                    )
                     for artifact_id in player.starting_artifact_ids
                 ]
                 for artifact in player.artifacts:
