@@ -74,6 +74,19 @@ class Susie(Monster):
 
 @card(287)
 class RouxlsKaard(Monster):
+    def iter_modifiers(self, game):
+        if self.zone is not CardZone.BOARD:
+            return
+
+        yield IntModifier(
+            kind=ModKind.DAMAGE,
+            layer=DamageLayer.THRESHOLD,
+            source=self,
+            description="You are Invulnerable.",
+            applies=lambda q: q.target.id == self.controller_id,
+            apply=lambda damage, q: 0,
+        )
+
     magic = GENERATE_CARD("Puzzle Box", controller=OPPONENT).to_hand(controller=OPPONENT)
 
 
