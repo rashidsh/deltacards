@@ -26,6 +26,7 @@ class CrystalTombstone(Monster):
                     & IS_MONSTER
                     & NON_GENERATED
                     & (COST <= 7)
+                    & HAS_ABILITY(DUST)
                 )
                 >> RANDOM(2)
            )
