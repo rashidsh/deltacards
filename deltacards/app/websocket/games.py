@@ -116,18 +116,28 @@ class HostedGame:
         game_id: int,
         human_player_id: PlayerId,
         config: ServerConfig,
+        human_deck_spec: str | None = None,
+        bot_deck_spec: str | None = None,
     ) -> 'HostedGame':
         bot_player_id = human_player_id.opponent()
         seed = config.game_seed_base + game_id
 
         human_deck = cls._select_deck(
-            name_or_code=config.human_deck_name,
+            name_or_code=(
+                human_deck_spec
+                if human_deck_spec is not None
+                else config.human_deck_name
+            ),
             game_id=game_id,
             seed=seed,
             offset=0,
         )
         bot_deck = cls._select_deck(
-            name_or_code=config.bot_deck_name,
+            name_or_code=(
+                bot_deck_spec
+                if bot_deck_spec is not None
+                else config.bot_deck_name
+            ),
             game_id=game_id,
             seed=seed,
             offset=1,
@@ -251,6 +261,8 @@ class GameRegistry:
         *,
         game_id: int,
         player_id: PlayerId,
+        human_deck_spec: str | None = None,
+        bot_deck_spec: str | None = None,
     ) -> HostedGame:
         async with self._lock:
             hosted = self._games.get(game_id)
@@ -260,6 +272,8 @@ class GameRegistry:
                     game_id=game_id,
                     human_player_id=player_id,
                     config=self.config,
+                    human_deck_spec=human_deck_spec,
+                    bot_deck_spec=bot_deck_spec,
                 )
                 self._games[game_id] = hosted
                 return hosted

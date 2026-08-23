@@ -297,7 +297,7 @@ class FreeKromer(Artifact):
         >> GENERATE_CARD("Irresistible Deal").to_hand()
     )
 
-    turn_end = Check(~EXISTS(HAND & (TEMPLATE_NAME == "Irresistible Deal"))).to(
+    turn_end = Check(HAND & (TEMPLATE_NAME == "Irresistible Deal")).to(
         Cast(
             card=GENERATE_CARD("BIG SHOT!!!"),
             controller=YOU,

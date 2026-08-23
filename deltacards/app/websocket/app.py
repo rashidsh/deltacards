@@ -1,16 +1,12 @@
 import argparse
-import asyncio
-import logging
 import re
-import signal
 from dataclasses import replace
-from http import HTTPStatus
-from urllib.parse import parse_qs, urlsplit
 
-from websockets.asyncio.server import ServerConnection, serve
-from websockets.datastructures import Headers
-from websockets.exceptions import ConnectionClosed
-from websockets.http11 import Response
+import uvicorn
+from fastapi import FastAPI, Request, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.datastructures import QueryParams
+from starlette.responses import Response
 
 from deltacards.content.frontend import FrontendContentCatalog
 from deltacards.content.loader import SOURCE_CARDS_JSON, load
@@ -18,35 +14,18 @@ from deltacards.content.registry import CONTENT
 from deltacards.model.enums import PlayerId
 
 from .config import ServerConfig
+from .connection import GameSocket, SocketClosed, StarletteGameSocket
 from .errors import FatalProtocolError, PlayerUnavailableError
 from .games import GameRegistry
 from .serializers import json_text
 from .session import WebSocketSession, fatal_error_event
 
 
-def http_response(
-    *,
-    status: HTTPStatus = HTTPStatus.OK,
-    content_type: str,
-    body: bytes,
-) -> Response:
-    return Response(
-        status_code=status.value,
-        reason_phrase=status.phrase,
-        headers=Headers([
-            ('Content-Type', content_type),
-            ('Content-Length', str(len(body))),
-            ('Cache-Control', 'no-cache'),
-            ('Access-Control-Allow-Origin', '*'),
-        ]),
-        body=body,
-    )
-
-
 def json_response(data: dict | list) -> Response:
-    return http_response(
-        content_type='application/json; charset=utf-8',
-        body=json_text(data).encode('utf-8'),
+    return Response(
+        content=json_text(data),
+        media_type='application/json',
+        headers={'Cache-Control': 'no-cache'},
     )
 
 
@@ -57,26 +36,6 @@ def deck_error_response(translation_key: str) -> dict:
             'args': json_text([translation_key]),
         }),
     }
-
-
-class IgnoreOptionsException(logging.Filter):
-    # TODO: should switch to another http / websockets library
-    #  rather than continuing using `websockets` for everything and relying on hacks like this one
-    def filter(self, record: logging.LogRecord) -> bool:
-        if record.getMessage() != "opening handshake failed":
-            return True
-
-        if record.exc_info is None:
-            return True
-
-        exc = record.exc_info[1]
-        while exc is not None:
-            if ("unsupported HTTP method" in str(exc)) and ("got OPTIONS" in str(exc)):
-                return False
-
-            exc = exc.__cause__ or exc.__context__
-
-        return True
 
 
 class WebSocketApplication:
@@ -90,47 +49,52 @@ class WebSocketApplication:
 
     @staticmethod
     def _parse_endpoint(
-        connection: ServerConnection,
+        game_id_text: str,
+        player_id_text: str | None,
     ) -> tuple[int, PlayerId]:
-        parsed = urlsplit(connection.request.path)
-        path_match = re.fullmatch(r'^/game/([1-9][0-9]*)$', parsed.path)
-        if path_match is None:
+        if re.fullmatch(r'[1-9][0-9]*', game_id_text) is None:
             raise FatalProtocolError(
-                f"Invalid game endpoint {parsed.path!r}"
+                f"Invalid game endpoint '/game/{game_id_text}'"
             )
 
-        query = parse_qs(parsed.query, keep_blank_values=True)
-
-        player_values = query['player_id']
-        if player_values[0] not in ('1', '2'):
+        if player_id_text not in ('1', '2'):
             raise FatalProtocolError("player_id must be 1 or 2")
 
-        game_id = int(path_match.group(1))
-        player_id = PlayerId(int(player_values[0]))
+        game_id = int(game_id_text)
+        player_id = PlayerId(int(player_id_text))
 
         return game_id, player_id
 
     async def handler(
         self,
-        connection: ServerConnection,
+        socket: GameSocket,
+        *,
+        game_id_text: str,
+        player_id_text: str | None,
+        human_deck_text: str | None,
+        bot_deck_text: str | None,
     ) -> None:
         try:
-            game_id, player_id = self._parse_endpoint(connection)
+            game_id, player_id = self._parse_endpoint(game_id_text, player_id_text)
+            human_deck_spec = human_deck_text or None
+            bot_deck_spec = bot_deck_text or None
             hosted = await self.registry.get_or_create(
                 game_id=game_id,
                 player_id=player_id,
+                human_deck_spec=human_deck_spec,
+                bot_deck_spec=bot_deck_spec,
             )
 
         except PlayerUnavailableError:
             await self._fail_connection(
-                connection,
+                socket,
                 'game-error-player-unavailable',
             )
             return
 
         except FatalProtocolError as exc:
             await self._fail_connection(
-                connection,
+                socket,
                 exc.translation_key,
                 *exc.translation_args,
             )
@@ -138,13 +102,13 @@ class WebSocketApplication:
 
         except Exception:
             await self._fail_connection(
-                connection,
+                socket,
                 'game-error-internal',
             )
             raise
 
         session = WebSocketSession(
-            websocket=connection,
+            websocket=socket,
             hosted=hosted,
             player_id=player_id,
         )
@@ -152,12 +116,12 @@ class WebSocketApplication:
 
     @staticmethod
     async def _fail_connection(
-        connection: ServerConnection,
+        socket: GameSocket,
         translation_key: str,
         *translation_args: object,
     ) -> None:
         try:
-            await connection.send(
+            await socket.send_text(
                 json_text(
                     fatal_error_event(
                         translation_key,
@@ -165,23 +129,23 @@ class WebSocketApplication:
                     ),
                 )
             )
-        except ConnectionClosed:
+        except SocketClosed:
             return
 
         try:
-            await connection.close(
+            await socket.close(
                 code=1008,
                 reason="Connection rejected",
             )
-        except ConnectionClosed:
+        except SocketClosed:
             pass
 
     def deck_config_action_response(
         self,
-        query: dict[str, list[str]],
+        query: QueryParams,
     ) -> dict:
-        action_values = query.get('action')
-        soul_values = query.get('soul')
+        action_values = query.getlist('action')
+        soul_values = query.getlist('soul')
 
         if not action_values or not soul_values:
             return deck_error_response('decks-error-invalid-request')
@@ -191,8 +155,8 @@ class WebSocketApplication:
 
         if action in ('addCard', 'removeCard'):
             try:
-                card_id = int(query['idCard'][0])
-            except (KeyError, IndexError, ValueError):
+                card_id = int(query.getlist('idCard')[0])
+            except (IndexError, ValueError):
                 return deck_error_response('decks-error-card-not-owned')
 
             card = self.frontend_content.custom_card(card_id)
@@ -225,84 +189,99 @@ class WebSocketApplication:
 
         return deck_error_response('decks-error-invalid-request')
 
-    async def process_request(self, connection, request):
-        parsed = urlsplit(request.path)
 
-        if parsed.path == '/check/':
-            return json_response({'status': 'ok'})
-
-        if (
-            parsed.path == '/cards-version/'
-            and parse_qs(parsed.query).get('type') == ['cards']
-        ):
-            return json_response({
-                'cardsVersion': self.frontend_content.cards_version,
-                'customContent': self.frontend_content.custom_content_view(),
-            })
-
-        if parsed.path == '/cards/':
-            return json_response({
-                'cards': json_text(self.frontend_content.cards),
-            })
-
-        if parsed.path == '/translations/':
-            locale = parse_qs(parsed.query).get('locale', ['en'])[0]
-            return json_response(CONTENT.localization_entries(locale))
-
-        if parsed.path == '/decks-config/':
-            return json_response(
-                self.deck_config_action_response(
-                    parse_qs(parsed.query, keep_blank_values=True)
-                )
-            )
-
-        asset = CONTENT.asset_at_url(parsed.path)
-        if asset is not None:
-            return http_response(
-                content_type=asset.content_type,
-                body=asset.data,
-            )
-
-        if request.headers.get('Upgrade', '').lower() != 'websocket':
-            return http_response(
-                status=HTTPStatus.NOT_FOUND,
-                content_type='text/plain; charset=utf-8',
-                body=b"Not found\n",
-            )
-
-        return None
-
-
-async def run_server(
-    config: ServerConfig | None = None,
-) -> None:
-    config = config or ServerConfig()
+def create_app(config: ServerConfig | None = None) -> FastAPI:
     load()
 
     application = WebSocketApplication(config)
-    stop_event = asyncio.Event()
-    loop = asyncio.get_running_loop()
 
-    for signal_name in (signal.SIGINT, signal.SIGTERM):
-        try:
-            loop.add_signal_handler(signal_name, stop_event.set)
-        except (NotImplementedError, RuntimeError):
-            pass
+    app = FastAPI()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=['*'],
+        allow_methods=['*'],
+        allow_headers=['*'],
+    )
 
-    print(f"Starting WebSocket server on ws://{config.host}:{config.port}")
+    @app.get('/check/')
+    async def check() -> Response:
+        return json_response({'status': 'ok'})
 
-    ws_logger = logging.getLogger('deltacards.websockets')
-    ws_logger.addFilter(IgnoreOptionsException())
+    @app.get('/cards-version/')
+    async def cards_version(request: Request) -> Response:
+        if request.query_params.getlist('type') != ['cards']:
+            return Response(status_code=404)
 
-    async with serve(
-        application.handler,
-        config.host,
-        config.port,
-        max_size=config.max_message_size,
-        process_request=application.process_request,
-        logger=ws_logger,
-    ):
-        await stop_event.wait()
+        return json_response({
+            'cardsVersion': application.frontend_content.cards_version,
+            'customContent': application.frontend_content.custom_content_view(),
+        })
+
+    @app.get('/cards/')
+    async def cards() -> Response:
+        return json_response({
+            'cards': json_text(application.frontend_content.cards),
+        })
+
+    @app.get('/translations/')
+    async def translations(request: Request) -> Response:
+        locale_values = [
+            value
+            for value in request.query_params.getlist('locale')
+            if value
+        ]
+        locale = locale_values[0] if locale_values else 'en'
+        return json_response(CONTENT.localization_entries(locale))
+
+    @app.get('/decks-config/')
+    async def decks_config(request: Request) -> Response:
+        return json_response(
+            application.deck_config_action_response(request.query_params)
+        )
+
+    @app.websocket('/game/{game_id}')
+    async def game_socket(
+        websocket: WebSocket,
+        game_id: str,
+        player_id: str | None = None,
+        human_deck: str | None = None,
+        bot_deck: str | None = None,
+    ) -> None:
+        await websocket.accept()
+        socket = StarletteGameSocket(websocket)
+        await application.handler(
+            socket,
+            game_id_text=game_id,
+            player_id_text=player_id,
+            human_deck_text=human_deck,
+            bot_deck_text=bot_deck,
+        )
+
+    @app.get('/{asset_path:path}')
+    async def content_asset(asset_path: str) -> Response:
+        asset = CONTENT.asset_at_url(f'/{asset_path}')
+        if asset is None:
+            return Response(status_code=404)
+
+        return Response(
+            content=asset.data,
+            media_type=asset.content_type,
+        )
+
+    return app
+
+
+def run_server(
+    config: ServerConfig | None = None,
+) -> None:
+    config = config or ServerConfig()
+
+    uvicorn.run(
+        create_app(config),
+        host=config.host,
+        port=config.port,
+        ws_max_size=config.max_message_size,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -365,6 +344,6 @@ def config_from_args(
 
 def main() -> None:
     try:
-        asyncio.run(run_server(config_from_args(parse_args())))
+        run_server(config_from_args(parse_args()))
     except KeyboardInterrupt:
         pass

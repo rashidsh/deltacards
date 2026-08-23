@@ -267,8 +267,7 @@ Its targeted Magic and its Synergy effects are skipped.
 ## Playing Spells
 To play a Spell:
 - it must be in your hand;
-- you must be able to pay its current cost;
-- if it requires a target, at least one legal target must exist.
+- you must be able to pay its current cost.
 
 A played Spell:
 1. has its gold cost paid;
@@ -280,6 +279,9 @@ A played Spell:
 7. causes eligible Shock effects to trigger if its base cost is at least 2.
 
 Reactions to a Spell being played or cast happen after its Magic resolves and after it leaves the Stack.
+
+If a Spell has a targeted Magic effect but there are no legal targets, the Spell may still be played.
+Its targeted Magic effects are skipped.
 
 If an effect casts a Spell rather than a player manually playing it:
 - it does not count as a manually played Spell;
@@ -298,12 +300,10 @@ Legal targets are determined using the current game state.
 ### Manual target selection
 If a card has legal targets and no target was supplied, its controller is asked to choose one.
 
-If a Monster has a targeted Magic effect but there are no legal targets:
-- the Monster may still be played;
-- its targeted Magic and its Synergy effects are skipped.
-
-If a Spell requires a target but has no legal targets:
-- the Spell cannot be played.
+If a Card has a targeted Magic effect but there are no legal targets:
+- it may still be played;
+- its Magic is skipped;
+- for a Monster, its Synergy effect is also skipped.
 
 ### Target restrictions
 - Transparent Monsters can't be manually selected as attack targets.

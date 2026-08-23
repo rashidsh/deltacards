@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         deltacards Bridge
-// @version      0.2.2
+// @version      0.2.3
 // @description  Connects the Undercards web client to a local deltacards engine instance for offline play and testing.
 // @author       rashidsh
 // @homepageURL  https://github.com/rashidsh/deltacards
@@ -81,6 +81,14 @@
     if (rawValue === 'false' || rawValue === '0') return false;
 
     return defaultValue;
+  }
+
+  function readStringSetting(key, defaultValue) {
+    const rawValue = localStorage.getItem(SETTINGS_PREFIX + key);
+
+    if (rawValue === null) return defaultValue;
+
+    return rawValue;
   }
 
   function readPortSetting(key, defaultValue) {
@@ -1020,6 +1028,17 @@
             const localUrl = localWebSocketUrl(`/game/${localGameID}`);
 
             localUrl.searchParams.set('player_id', '1');
+
+            const humanDeck = readStringSetting('humanDeckCode', '').trim();
+            if (humanDeck) {
+              localUrl.searchParams.set('human_deck', humanDeck);
+            }
+
+            const botDeck = readStringSetting('botDeckCode', '').trim();
+            if (botDeck) {
+              localUrl.searchParams.set('bot_deck', botDeck);
+            }
+
             wsUrlArgs[0] = localUrl.href;
             redirect = true;
           }
@@ -1230,6 +1249,22 @@
       onChange: (value => {
         deltacardsPort = normalizedPort(value, SETTING_DEFAULTS.serverPort);
       }),
+    });
+
+    settings.add({
+      key: 'humanDeckCode',
+      name: "Your deck code",
+      note: "Base64 or JSON deck code. Leave empty for the server default.",
+      type: 'text',
+      category: "Local game",
+    });
+
+    settings.add({
+      key: 'botDeckCode',
+      name: "Bot deck code",
+      note: "Base64 or JSON deck code. Leave empty for the server default.",
+      type: 'text',
+      category: "Local game",
     });
 
     class StartButtonSetting extends underscript.utils.SettingType {

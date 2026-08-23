@@ -1066,11 +1066,7 @@ class Play(Action):
 
             if target is None:
                 if len(options) == 0:
-                    if isinstance(card, Spell):
-                        # Spell is not playable without targets
-                        return ActionOutcome(success=False)
-
-                    # Monster is playable without targets, but its Magic gets skipped
+                    # Card can be played even with no targets available, but its Magic gets skipped
                     skip_magic = True
 
                 else:

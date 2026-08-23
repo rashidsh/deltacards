@@ -307,12 +307,11 @@ class FrontendAdapter:
                     playable_triggers.append(card.id)
 
                 if (
-                    isinstance(action, PlayMonster)
-                    and card.targets is not None
+                    card.targets is not None
                     and not self.game.play_target_options(
                         card=card,
                         player=viewer,
-                        pos=action.board_slot,
+                        pos=action.board_slot if isinstance(action, PlayMonster) else None,
                     )
                     and card.id not in playable_no_targets
                 ):
