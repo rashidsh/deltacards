@@ -63,7 +63,13 @@ class TrueJustice(Artifact):
     name = "True Justice"
     rarity = ArtifactRarity.TOKEN
 
-    _effect = Check(SELF.counter > 0).to(
+    _effect = Check(
+        (SELF.counter > 0)
+        & (
+            (COUNT(ENEMY_MONSTERS) >= 1)
+            | (YOU.hp < OPPONENT.hp)
+        )
+    ).to(
         SELF.update_artifact_counter(-1)
         >> (ENEMY_MONSTERS >> MIN(HP)).hit(1)
         >> Check(YOU.hp < OPPONENT.hp).to(
