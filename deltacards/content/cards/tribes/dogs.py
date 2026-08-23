@@ -92,5 +92,6 @@ class RopeDog(Monster):
 
         return OncePerTurn(
             RopeDog.last_refresh_turn,
-            SELF.refresh_attacks(),
+            SELF.refresh_attacks()
+            >> SELF.add_keyword(HASTE),
         )
