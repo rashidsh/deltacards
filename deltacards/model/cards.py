@@ -542,8 +542,6 @@ class Monster(Card[MonsterTemplate]):
 
         super().copy_exact_state_from(other)
 
-        self.age = other.age
-        self.has_attacked = other.has_attacked
         self.hp_missing = other.hp_missing
 
     def get_snapshot_attrs(self) -> dict:

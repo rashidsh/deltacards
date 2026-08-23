@@ -790,8 +790,9 @@ class SwapStats(Action):
 class HalveStats(Action):
     target: Arg['Monster'] = Arg(many=True)
     round_up: Arg['bool'] = Arg()
+    halve_cost: Arg['bool'] = Arg()
 
-    def execute(self, target: Monster, round_up: bool, *, ctx: ActionContext, **kwargs):
+    def execute(self, target: Monster, round_up: bool, halve_cost: bool, *, ctx: ActionContext, **kwargs):
         if not isinstance(target, Monster):
             return ActionOutcome(success=False)
 
@@ -801,7 +802,10 @@ class HalveStats(Action):
         action_calls = []
 
         round_func = math.floor if round_up else math.ceil  # negative stat buffs are inverted
-        target.buff(attack=-round_func(target.attack / 2), hp=-round_func(target.hp / 2))
+        if halve_cost:
+            target.buff(attack=-round_func(target.attack / 2), hp=-round_func(target.hp / 2), cost=-round_func(target.cost / 2))
+        else:
+            target.buff(attack=-round_func(target.attack / 2), hp=-round_func(target.hp / 2))
 
         if target.hp <= 0 and target.zone is CardZone.BOARD:
             action_calls.append(

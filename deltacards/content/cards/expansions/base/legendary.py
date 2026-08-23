@@ -181,7 +181,7 @@ class MadMewMew(Monster):
     targets = ALLY_MONSTERS & NON_DT
 
     magic = (
-        TARGET.halve_stats(round_up=False)
+        TARGET.halve_stats(round_up=True, halve_cost=True)
         >> (TARGET >> EXACT_COPY()).summon()
         >> Check(EMPTY_SLOTS(BOARD) > 0).to(
             Program(3).to(
@@ -255,7 +255,7 @@ class MioMioSan(Monster):
     magic = YOU.choose(
         OPPONENT_HAND & IS_MONSTER & NON_DT
     ).to(
-        CHOICE_SELECTED.halve_stats(round_up=False)
+        CHOICE_SELECTED.halve_stats(round_up=True, halve_cost=False)
         >> (CHOICE_SELECTED >> EXACT_COPY()).to_hand()
     )
 

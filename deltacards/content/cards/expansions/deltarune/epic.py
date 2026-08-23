@@ -608,7 +608,7 @@ class TitanSerpent(Monster):
         return (
             SetVar(var=self.copied_card, value=SELF >> EXACT_COPY())
             >> self.copied_card.add_keyword(HASTE)
-            >> self.copied_card.halve_stats(round_up=False)
+            >> self.copied_card.halve_stats(round_up=True, halve_cost=True)
             >> self.copied_card.summon()
         )
 
