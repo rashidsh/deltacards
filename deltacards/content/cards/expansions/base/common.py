@@ -649,12 +649,12 @@ class LaggyTV(Monster):
 
 @card(560)
 class MomSlime(Monster):
-    @on_event(GoldSpentResult)
-    def on_gold_spent(self, res: GoldSpentResult, game, **kwargs):
+    @on_event(SpellCastResult)
+    def on_spell_cast(self, res: SpellCastResult, game, **kwargs):
         if res.player_id != self.controller_id:
             return None
 
-        if res.reason != 'play_spell':
+        if res.card.cost < 1:
             return None
 
         return GENERATE_CARD("Kid Slime").summon()
