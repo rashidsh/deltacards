@@ -88,7 +88,12 @@ class MultiShot(Spell):
     delay = (
         Check(YOU & HAS_ARTIFACT("True Justice")).to(
             While(
-                (_artifact.counter > 0) & _artifact.active,
+                (_artifact.counter > 0)
+                & _artifact.active
+                & (
+                    (COUNT(ENEMY_MONSTERS) >= 1)
+                    | (YOU.hp < OPPONENT.hp)
+                ),
                 _artifact.trigger_ability(Ability.TURN_END)
             ),
             else_=YOU.add_artifact(

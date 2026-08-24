@@ -782,8 +782,9 @@ class Wicabel(Monster):
 
 @card(922)
 class CoolerCooler(Monster):
-    shock = SELF.hit(1).to(
-        GENERATE_CARD("Mizzle").summon()
+    shock = Check(EMPTY_SLOTS(BOARD) >= 1).to(
+        SELF.hit(1)
+        >> GENERATE_CARD("Mizzle").summon()
     )
 
 

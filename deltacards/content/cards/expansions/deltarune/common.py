@@ -784,10 +784,10 @@ class Crossganikk(Monster):
 class Mizzle(Monster):
     healed_monster: Var[TargetSelector] = Var(TargetSelector)
 
-    turn_end = Check(ALLY_MONSTERS & DAMAGED).to(
+    turn_end = Check(ALLIES & DAMAGED).to(
         SetVar(
             var=healed_monster,
-            value=(ALLY_MONSTERS & DAMAGED) >> MIN(HP),
+            value=(ALLIES & DAMAGED) >> MIN(HP),
         )
         >> healed_monster.heal(2)
         >> Check(healed_monster.hp == healed_monster.max_hp).to(
