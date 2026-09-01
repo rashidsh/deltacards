@@ -58,7 +58,10 @@ class TestOfWill(Spell):
 class Pie(Spell):
     targets = ALL_MONSTERS
 
-    magic = TARGET.heal(TARGET.max_hp - TARGET.hp)
+    magic = Check(TARGET & DAMAGED).to(
+        TARGET.heal(TARGET.max_hp),
+        else_=TARGET.buff(hp=+2)
+    )
 
 
 @card(184)

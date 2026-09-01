@@ -72,8 +72,8 @@ class Ribbit(Artifact):
 
 
 @artifact(6)
-class Solidity(Artifact):
-    name = "Solidity"
+class ChainMail(Artifact):
+    name = "ChainMail"
     rarity = ArtifactRarity.BASE
 
     @on_event(MonsterKilledResult)

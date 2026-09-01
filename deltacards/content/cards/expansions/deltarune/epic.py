@@ -135,7 +135,7 @@ class SoulCage(Monster):
 
     dust = (
         SetVar(var=generated_card, value=GENERATE_CARD("Knife", controller=TURN_PLAYER))
-        >> generated_card.set_stats(cost=0)
+        >> generated_card.set_stats(cost=1)
         >> generated_card.to_hand(controller=TURN_PLAYER)
     )
 
@@ -566,28 +566,27 @@ class WhiteCloak(Monster):
 
 @card(892)
 class Knightdyne(Monster):
+    hit_result: Var[StepResult] = Var(StepResult)
     generated_card: Var[Card] = Var(Card)
 
-    def magic(self, ctx, **kwargs):
-        for _ in range(4):
-            opponent = ctx.game.player(self.controller_id).opponent
-            if len(opponent.board.cards) == 0:
-                return None
-
-            step = yield (ENEMY_MONSTERS >> MIN(HP)).hit(1)
-
-            killed = False
-            for result in step.results:
-                if isinstance(result, EntityDamagedResult):
-                    killed = result.killed
-
-            if killed:
-                yield (
-                    SetVar(var=self.generated_card, value=GENERATE_CARD("Spear"))
-                    >> self.generated_card.set_base_stats(attack=2, hp=3)
-                    >> self.generated_card.add_keyword(TAUNT)
-                    >> self.generated_card.summon()
+    magic = For(
+        4,
+        (
+            (
+                ENEMY_MONSTERS >> MIN(HP)
+            ).hit(1).store_result(hit_result).to(
+                Check(hit_result.killed).to(
+                    SetVar(
+                        var=generated_card,
+                        value=GENERATE_CARD("Spear")
+                    )
+                    >> generated_card.set_base_stats(attack=2, hp=3)
+                    >> generated_card.add_keyword(TAUNT)
+                    >> generated_card.summon()
                 )
+            )
+        )
+    )
 
 
 @card(898)
@@ -702,10 +701,12 @@ class PixelKris(Monster):
 
     magic = Check(FRONT(SELF)).to(
         SELF.buff(attack=FRONT(SELF).attack)
-        >> Cast(
-            card=GENERATE_CARD("Proceed"),
-            controller=YOU,
-            effect_target=FRONT(SELF)
+        >> Check(FRONT(SELF) & NON_DT).to(
+            Cast(
+                card=GENERATE_CARD("Proceed"),
+                controller=YOU,
+                effect_target=FRONT(SELF)
+            )
         )
     )
 
@@ -836,3 +837,28 @@ class TrialRalsei(Monster):
         >> AS_CARDS()
         >> COPY()
     ).summon(attack=3, hp=3)
+
+
+@card(989)
+class VampireAlvin(Monster):
+    targets = ALL_MONSTERS & NON_DT
+
+    magic = TARGET.buff(cost=-3, attack=-3, hp=-3, min_hp=1).to(
+        SELF.schedule_delay_effect()
+    )
+
+    delay = Check(TARGET & ~DEAD).to(
+        (TARGET >> EXACT_COPY()).to_hand()
+    )
+
+
+@card(992)
+class IceEBanner(Monster):
+    targets = ALL_MONSTERS
+
+    magic = (
+        TARGET.silence()
+        >> TARGET.paralyze()
+        >> TARGET.add_keyword(KR)
+        >> TARGET.add_keyword(WANTED)
+    )

@@ -493,3 +493,33 @@ class Stick(Artifact):
     turn_start = Check(YOU.turn % 4 == 0).to(
         GENERATE_CARD("Throw the Stick").to_hand()
     )
+
+
+@artifact(79)
+class ShatteredRose(Artifact):
+    name = "Shattered Rose"
+    rarity = ArtifactRarity.TOKEN
+
+    support = ATTACKER.buff(attack=+1, hp=+1)
+
+    @on_event(MonsterKilledResult)
+    def on_monster_killed(self, res: MonsterKilledResult, game, **kwargs):
+        killer = game.entity(res.killer_id)
+        if not isinstance(killer, Monster):
+            return None
+
+        if res.killer.controller_id != self.controller_id:
+            return None
+
+        if res.killer_id == res.monster_id:
+            return None
+
+        return (
+            SELF.update_artifact_counter(+1)
+            >> Check(
+                SELF.counter >= SELF.quest_goal
+            ).to(
+                GENERATE_CARD("Ice Crystal").to_hand()
+                >> SELF.update_artifact_counter(-SELF.counter)
+            )
+        )

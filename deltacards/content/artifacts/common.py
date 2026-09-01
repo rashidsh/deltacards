@@ -76,8 +76,8 @@ class Preservation(Artifact):
 
 
 @artifact(14)
-class Copycat(Artifact):
-    name = "Copycat"
+class NetskieHat(Artifact):
+    name = "NetskieHat"
     rarity = ArtifactRarity.COMMON
 
     copied_cards: Var[TargetSelector] = Var(TargetSelector)
@@ -129,8 +129,8 @@ class Spy(Artifact):
 
 
 @artifact(20)
-class Hourglass(Artifact):
-    name = "Hourglass"
+class SilverWatch(Artifact):
+    name = "Silver Watch"
     rarity = ArtifactRarity.COMMON
     initial_counter = 5
 
@@ -256,8 +256,8 @@ class EvilPlan(Artifact):
 
 
 @artifact(40)
-class GoodFood(Artifact):
-    name = "Good Food"
+class BlueRibbon(Artifact):
+    name = "Blue Ribbon"
     rarity = ArtifactRarity.COMMON
 
     shock = YOU.heal(1)
@@ -341,14 +341,43 @@ class PixelCamera(Artifact):
     name = "Pixel Camera"
     rarity = ArtifactRarity.COMMON
 
-    copies: Var[TargetSelector] = Var(TargetSelector)
+    left_copies: Var[TargetSelector] = Var(TargetSelector)
+    right_copies: Var[TargetSelector] = Var(TargetSelector)
 
     turn_end = Check(EMPTY_SLOTS(BOARD) == 0).to(
         SetVar(
-            var=copies,
-            value=(ALLY_MONSTERS & NON_DT) >> COPY(),
+            var=left_copies,
+            value=(
+                (ALLY_MONSTERS & NON_DT).top(2)
+                >> COPY()
+            ),
         )
-        >> copies.buff(cost=-1)
-        >> copies.move_to(CardZone.DECK)
+        >> SetVar(
+            var=right_copies,
+            value=(
+                (ALLY_MONSTERS & NON_DT).bottom(2)
+                >> COPY()
+            ),
+        )
+        >> (left_copies | right_copies).buff(cost=-1)
+        >> left_copies.to_hand()
+        >> right_copies.to_deck()
         >> SELF.toggle_artifact(False)
+    )
+
+
+@artifact(78)
+class SusiesApron(Artifact):
+    name = "Susie's Apron"
+    rarity = ArtifactRarity.COMMON
+
+    turn_end = Check(
+        (YOU.turn % 4) == 0
+    ).to(
+        (
+            (ENEMY_SLOTS & EMPTY_SLOT)
+            >> RANDOM(2)
+        ).enchant(
+            ENCHANTMENT_BY_NAME('the-flame')
+        )
     )

@@ -202,8 +202,16 @@ class TNTMan(Monster):
 
 @card(832)
 class TallMiner(Monster):
-    shock = Check(TRIGGER_CARD.template_name != "Crystal Shard").to(
-        GENERATE_CARD("Crystal Shard").to_hand()
+    generated_card: Var[Card] = Var(Card)
+
+    shock = (
+        SetVar(
+            var=generated_card,
+            value=GENERATE_CARD("Crystal Shard")
+        )
+        >> generated_card.set_stats(cost=0)
+        >> generated_card.to_hand()
+        >> SELF.toggle_ability(SHOCK, False)
     )
 
 
@@ -591,9 +599,31 @@ class WildRevolver(Spell):
 
 @card(948)
 class Blackjack(Monster):
-    magic = YOU.choose(DECK[:6]).to(
-        CHOICE_SELECTED.turn_into(
-            GENERATE_CARD("Wild Revolver")
+    generated_card: Var[Card] = Var(Card)
+
+    magic = SELF.schedule_delay_effect()
+
+    delay = (
+        SetVar(
+            var=generated_card,
+            value=GENERATE_CARD("Wild Revolver")
+        )
+        >> Check(
+            EXISTS(
+                MONSTERS_DIED(scope=THIS_TURN)
+                & (HP == 0)
+            )
+        ).to(
+            generated_card.to_hand(),
+            else_=generated_card.to_deck(
+                pos=(
+                    RANGE(
+                        0,
+                        LEAST(COUNT(DECK), 5) + 1
+                    )
+                    >> RANDOM(1)
+                )
+            )
         )
     )
 
@@ -633,3 +663,23 @@ class Violetta(Monster):
         )
         >> generated_card.to_hand()
     )
+
+
+@card(991)
+class RaincoatSpider(Monster):
+    @on_event(CardPlayedResult)
+    def on_card_played(self, res: CardPlayedResult, game, **kwargs):
+        if res.player_id != self.controller_id:
+            return None
+
+        played_card = game.entity(res.card_id)
+        if not isinstance(played_card, Monster):
+            return None
+
+        if not res.card.has_tribe(Tribe.ARACHNID):
+            return None
+
+        if res.card.creator_base_identity == self.base_identity:
+            return None
+
+        return GENERATE_CARD("Spider").to_hand()

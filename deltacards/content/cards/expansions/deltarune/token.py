@@ -53,7 +53,7 @@ class BreakingLove(Spell):
     targets = ALL_MONSTERS
 
     magic = (
-        TARGET.buff(attack=-1, hp=-1)
+        TARGET.buff(attack=-2, hp=-1)
         >> YOU.draw_next()
     )
 

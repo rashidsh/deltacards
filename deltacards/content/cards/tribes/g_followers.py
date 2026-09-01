@@ -21,24 +21,28 @@ class GFollower2(Monster):
 class GFollower3(Monster):
     g_follower_cards: Var[TargetSelector] = Var(TargetSelector)
 
+    _other_g_followers = (
+        CARD_LIBRARY
+        & IS_MONSTER
+        & G_FOLLOWER
+        & NOT_ALL
+        & (TEMPLATE_NAME != SELF.template_name)
+    ) >> GENERATE_CARD()
+
     magic = Check(~SYNERGY_TRIGGERED).to(
         SetVar(
             var=g_follower_cards,
-            value=(DISCOVER(G_FOLLOWER, NOT_ALL, n=2))
+            value=_other_g_followers,
         )
         >> YOU.choose(g_follower_cards).to(
-            CHOICE_SELECTED.to_hand()
+            Check(SYNERGY_TRIGGERED).to(
+                CHOICE_SELECTED.buff(cost=-1)
+            )
+            >> CHOICE_SELECTED.to_hand()
         )
     )
 
-    synergy = (
-        SetVar(
-            var=g_follower_cards,
-            value=(DISCOVER(G_FOLLOWER, NOT_ALL, n=2))
-        )
-        >> g_follower_cards.buff(cost=-1)
-        >> g_follower_cards.to_hand()
-    )
+    synergy = NO_EFFECT
 
 
 @card(121)

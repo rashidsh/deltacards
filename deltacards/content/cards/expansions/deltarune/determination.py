@@ -181,3 +181,30 @@ class Flowery(Monster):
             return None
 
         return GENERATE_CARD("Our OMEGA").to_hand()
+
+
+@card(993)
+class LostNoelle(Monster):
+    other_ally_monsters: Var[TargetSelector] = Var(TargetSelector)
+    generated_cards: Var[TargetSelector] = Var(TargetSelector)
+
+    game_start = YOU.add_artifact(
+        ARTIFACT_BY_NAME("The Forbidden Path")
+    )
+
+    magic = (
+        SetVar(
+            var=other_ally_monsters,
+            value=ALLY_MONSTERS & ~SELF
+        )
+        >> other_ally_monsters.kill()
+        >> SetVar(
+            var=generated_cards,
+            value=GENERATE_CARD(
+                "Ice Crystal",
+                count=COUNT(other_ally_monsters)
+            )
+        )
+        >> generated_cards.set_stats(cost=2)
+        >> generated_cards.to_hand()
+    )

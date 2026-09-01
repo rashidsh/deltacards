@@ -102,6 +102,8 @@ class BigMouth(Monster):
 
 @card(137)
 class BigBob(Monster):
+    generated_card: Var[Card] = Var(Card)
+
     @on_event(EntityDamagedResult)
     def on_entity_damaged(self, res: EntityDamagedResult, game, **kwargs):
         if res.target_id != self.id:
@@ -113,7 +115,14 @@ class BigBob(Monster):
         if res.killed:
             return None
 
-        return GENERATE_CARD("Big Bob").summon()
+        return (
+            SetVar(
+                var=self.generated_card,
+                value=GENERATE_CARD("Big Bob"),
+            )
+            >> self.generated_card.set_stats(cost=0)
+            >> self.generated_card.summon()
+        )
 
 
 @card(145)
@@ -271,7 +280,7 @@ class TemmieStatue(Monster):
 
 
 @card(174)
-class Receptionist2(Monster):
+class DiamondReceptionist(Monster):
     magic = SELF.buff(hp=COUNT(ENEMY_MONSTERS))
 
 
@@ -440,7 +449,7 @@ class SnowdinSign(Monster):
 
 
 @card(245)
-class Editor1(Monster):
+class ScarfLady(Monster):
     magic = YOU.choose(
         DECK & IS_MONSTER & HAS_ABILITY(TURBO)
     ).to(
@@ -450,7 +459,7 @@ class Editor1(Monster):
 
 
 @card(246)
-class Editor2(Monster):
+class LadyGarf(Monster):
     magic = YOU.choose(
         DISCOVER(IS_MONSTER, NON_TOKEN, n=5)
     ).to(
@@ -523,8 +532,7 @@ class CrystalCheese(Monster):
     )
 
     dust = SELF.release_caught_card(var=released_card).to(
-        released_card.set_stats(attack=1, hp=1)
-        >> released_card.summon(controller=released_card.controller)
+        released_card.summon(controller=released_card.controller, attack=1, hp=1)
     )
 
 

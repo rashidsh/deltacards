@@ -255,7 +255,7 @@ class CrazyBun(Monster):
 
 
 @card(167)
-class Receptionist1(Monster):
+class HandReceptionist(Monster):
     @on_event(EntityDamagedResult)
     def on_entity_damaged(self, res: EntityDamagedResult, game, **kwargs):
         if res.target_id != self.id:
