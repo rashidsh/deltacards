@@ -12,7 +12,7 @@ from deltacards.actions.standard import (
 from deltacards.actions.standard import Attack as AttackAction
 from deltacards.engine.action_log import ActionLogRecord
 from deltacards.engine.game import Game
-from deltacards.model.artifacts import ARTIFACTS
+from deltacards.engine.limits import ResourceLimitError
 from deltacards.model.cards import CardZone, Monster, Spell
 from deltacards.model.containers import Deck
 from deltacards.model.enums import Ability, PlayerId
@@ -23,7 +23,6 @@ from deltacards.model.requests import (
     PlayMonster, PlaySpell, PlayerAction, PlayerActionResponse,
 )
 from deltacards.model.slots import BoardSlot
-from deltacards.model.souls import SOULS
 
 
 def compile_player_action(action: PlayerAction, game: Game, player_id: PlayerId) -> tuple[bool, str, Action | None]:
@@ -72,6 +71,7 @@ class EngineUpdate:
     pending: tuple[PendingRequest, ...]
     game_over: bool
     log_records: list[ActionLogRecord] = field(default_factory=list)
+    steps: int = 0
 
 
 StepListener = Callable[[EngineUpdate], None]
@@ -114,11 +114,18 @@ class GameRunner:
                 player = self.game.player(player_id)
                 player.board_slots = []
 
-                player.soul = SOULS[player.starting_soul_id](id=self.game.alloc_entity_id(), controller_id=player_id)
+                soul_type = self.game.content.souls[player.starting_soul_id]
+                player.soul = soul_type(
+                    id=self.game.alloc_entity_id(),
+                    controller_id=player_id,
+                )
                 self.game.register_entity(player.soul, entity_id=player.soul.id)
 
                 player.artifacts = [
-                    ARTIFACTS[artifact_id](id=self.game.alloc_entity_id(), controller_id=player_id)
+                    self.game.content.artifacts[artifact_id](
+                        id=self.game.alloc_entity_id(),
+                        controller_id=player_id,
+                    )
                     for artifact_id in player.starting_artifact_ids
                 ]
                 for artifact in player.artifacts:
@@ -231,8 +238,14 @@ class GameRunner:
 
     def _resolve_one(self) -> list[ActionResult]:
         pending = self.game.resolution_stack.pop()
+
         try:
             results = self.game._resolve_one(pending)
+
+        except ResourceLimitError as exc:
+            self.game.terminate_for_resource_limit(exc.code)
+            results = []
+
         except Exception as e:
             raise RuntimeError(
                 f"Exception during effect resolution:\n"
@@ -294,6 +307,7 @@ class GameRunner:
         step_limit: int = MAX_STEPS,
         *,
         step_listener: StepListener | None = None,
+        terminate_on_step_limit: bool = False,
     ) -> EngineUpdate:
         """
         Resolve until blocked (pending requests exist) or game ends.
@@ -325,12 +339,31 @@ class GameRunner:
                     pending=upd.pending,
                     game_over=upd.game_over,
                     log_records=log_records,
+                    steps=steps,
                 )
 
-        if steps >= step_limit:
+        if steps >= step_limit and not self.game.game_over:
+            if terminate_on_step_limit:
+                self.game.terminate_for_resource_limit(
+                    'resolution_steps'
+                )
+                return EngineUpdate(
+                    results=results,
+                    pending=(),
+                    game_over=True,
+                    log_records=log_records,
+                    steps=steps,
+                )
+
             raise RuntimeError("Step limit reached (possible infinite loop).")
 
-        return EngineUpdate(results=results, pending=(), game_over=True)
+        return EngineUpdate(
+            results=results,
+            pending=(),
+            game_over=True,
+            log_records=log_records,
+            steps=steps,
+        )
 
     # --------------------
     # Player input API

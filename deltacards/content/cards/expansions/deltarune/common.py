@@ -858,7 +858,7 @@ class Terakota(Monster):
     targets = ALLY_SLOTS
 
     magic = TARGET.enchant(
-        ENCHANTMENT_BY_NAME('soil')
+        ENCHANTMENT_BY_NAME("Soil")
     )
 
 

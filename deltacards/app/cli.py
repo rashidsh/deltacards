@@ -841,6 +841,8 @@ def main() -> None:
 
     args = parse_args()
 
+    catalog = load()
+
     decks: dict[PlayerId, dict | None] = {PlayerId.P1: None, PlayerId.P2: None}
 
     # Check if user provided no CLI arguments
@@ -874,9 +876,7 @@ def main() -> None:
     if args.p2 == 'ai':
         ai_agents[PlayerId.P2] = SimpleAI()
 
-    load()
-
-    game = Game(tuple(players))
+    game = Game(tuple(players), content=catalog)
     runner = GameRunner(game)
     controller = AIGameController(
         runner=runner,

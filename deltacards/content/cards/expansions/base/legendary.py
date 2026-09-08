@@ -356,5 +356,5 @@ class ElUndercardio(Monster):
 @card(941)
 class JogboyPapyrus(Monster):
     magic = ENEMY_SLOTS.enchant(
-        ENCHANTMENT_BY_NAME('blue-bones')
+        ENCHANTMENT_BY_NAME("Blue Bones")
     )

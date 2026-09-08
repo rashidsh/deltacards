@@ -1,15 +1,15 @@
 from importlib import import_module
 from pathlib import Path
+from types import ModuleType
 from typing import Iterable
 
-from deltacards.content.card_data import load_or_build_cards
+from deltacards.content.card_data import decode_source_cards, load_or_build_cards
+from deltacards.content.catalog import ContentBuilder, ContentCatalog
 from deltacards.content.discovery import load_custom_content
-from deltacards.content.library import LIBRARY
-from deltacards.content.registry import CONTENT
-from deltacards.model.cards import cards
+from deltacards.content.registration import registrations_from_module
 
 
-CONTENT_MODULES = [
+CONTENT_MODULES = (
     # Cards
     'deltacards.content.cards.expansions.base.base',
     'deltacards.content.cards.expansions.base.common',
@@ -68,48 +68,60 @@ CONTENT_MODULES = [
 
     # Souls
     'deltacards.content.souls.standard',
-]
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_CARDS_JSON = PROJECT_ROOT / 'AllCards.json'
 CACHE_CARDS_JSON = PROJECT_ROOT / 'data' / 'cards.json'
 
 
-def load_templates(*, force_rebuild: bool = False) -> None:
+def _import_standard_modules() -> tuple[ModuleType, ...]:
+    return tuple(
+        import_module(module_name)
+        for module_name in CONTENT_MODULES
+    )
+
+
+def load_standard_catalog(*, force_rebuild: bool = False) -> ContentCatalog:
+    modules = _import_standard_modules()
+    registrations = tuple(
+        registration
+        for module in modules
+        for registration in registrations_from_module(module)
+    )
+
+    abilities_by_card = {
+        registration.content_id: registration.implementation.declared_ability_names()
+        for registration in registrations
+        if registration.kind == 'card'
+    }
+
     records = load_or_build_cards(
         source_path=SOURCE_CARDS_JSON,
         cache_path=CACHE_CARDS_JSON,
-        abilities_by_card={
-            card_id: card_cls.declared_ability_names()
-            for card_id, card_cls in cards.items()
-        },
+        abilities_by_card=abilities_by_card,
         force_rebuild=force_rebuild,
     )
 
-    card_data_ids = {record['id'] for record in records}
-    custom_card_ids = {template.id for template in CONTENT.card_templates}
-
-    duplicate_ids = sorted(card_data_ids & custom_card_ids)
-    if duplicate_ids:
-        raise ValueError(
-            f"Custom card definitions use IDs already present in AllCards.json: {duplicate_ids}."
-        )
-
-    LIBRARY.load_templates(
-        records,
-        extra_templates=CONTENT.card_templates,
+    builder = ContentBuilder(
+        card_records=records,
+        source_cards=decode_source_cards(SOURCE_CARDS_JSON.read_bytes()),
     )
-
-    CONTENT.finalize()
+    builder.add_modules(modules)
+    return builder.finalize()
 
 
 def load(
     *,
     force_rebuild: bool = False,
     content_paths: Iterable[Path] | None = None,
-) -> None:
-    for module_name in CONTENT_MODULES:
-        import_module(module_name)
+) -> ContentCatalog:
+    standard_catalog = load_standard_catalog(force_rebuild=force_rebuild)
+    custom_modules = load_custom_content(content_paths)
 
-    load_custom_content(content_paths)
-    load_templates(force_rebuild=force_rebuild)
+    if not custom_modules:
+        return standard_catalog
+
+    builder = ContentBuilder(base=standard_catalog)
+    builder.add_modules(custom_modules)
+    return builder.finalize()

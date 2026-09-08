@@ -1,7 +1,6 @@
 from dataclasses import asdict, dataclass, replace
 from typing import Any, ClassVar, Generic, TYPE_CHECKING, TypeVar
 
-from deltacards.content.library import LIBRARY
 from deltacards.model.entity import Entity
 from deltacards.model.enums import (
     Ability,
@@ -24,23 +23,11 @@ from deltacards.model.templates import CardTemplate, MonsterTemplate
 from deltacards.model.types import BaseIdentity
 
 if TYPE_CHECKING:
+    from deltacards.content.catalog import ContentCatalog
     from deltacards.dsl.core import TargetSelector
 
 
 TTemplate = TypeVar('TTemplate', bound=CardTemplate)
-
-cards: dict[int, type[Card]] = {}
-
-
-def card(card_id: int):
-    def wrapper(class_: type[Card]):
-        if card_id in cards:
-            raise ValueError(f"Card with ID {card_id} already exists")
-
-        cards[card_id] = class_
-        return class_
-
-    return wrapper
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,8 +106,8 @@ class Card(Entity, Generic[TTemplate]):
             )
 
         self.keywords = self.template.keywords
-        self.statuses = self.template.statuses.copy()
-        self.active_abilities = self.template.active_abilities.copy()
+        self.statuses = dict(self.template.statuses)
+        self.active_abilities = set(self.template.active_abilities)
 
         self.buffs = CardBuffs()
         self.caught_card: CaughtCardData | None = None
@@ -396,8 +383,8 @@ class Monster(Card[MonsterTemplate]):
 
         self.buffs = CardBuffs()
         self.keywords = self.template.keywords
-        self.statuses = self.template.statuses.copy()
-        self.active_abilities = self.template.active_abilities.copy()
+        self.statuses = dict(self.template.statuses)
+        self.active_abilities = set(self.template.active_abilities)
         self.caught_card = None
 
         self.age = 0
@@ -454,6 +441,9 @@ class Monster(Card[MonsterTemplate]):
         return self._need_condition is not None
 
     def heal(self, amount: int) -> int:
+        if amount <= 0:
+            return 0
+
         old_hp = self.hp
         self.hp_missing = max(self.hp_missing - amount, 0)
 
@@ -590,11 +580,9 @@ class Spell(Card[CardTemplate]):
         return SpellSnapshot(**self.get_snapshot_attrs())
 
 
-CARDS = {}
-
-
 def create_card(
     id: int,
+    content: 'ContentCatalog',
     template_id: int,
     controller_id: PlayerId,
     zone: CardZone = CardZone.INVALID,
@@ -603,10 +591,9 @@ def create_card(
     base_attack: int | None = None,
     base_hp: int | None = None,
 ) -> Card:
-    template = LIBRARY.get(template_id)
-    if template_id in cards:
-        class_ = cards[template_id]
-    else:
+    template = content.cards.get(template_id)
+    class_ = content.card_implementations.get(template_id)
+    if class_ is None:
         class_ = (Monster, Spell)[template.type.value]
 
     if template.type == CardType.MONSTER and ((base_attack is not None) or (base_hp is not None)):

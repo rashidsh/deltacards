@@ -13,18 +13,55 @@ from deltacards.model.enums import (
 from deltacards.model.templates import CardTemplate, MonsterTemplate, SpellTemplate
 
 
+def normalize_content_name(name: str) -> str:
+    return name.strip().casefold()
+
+
 class CardLibrary:
-    def __init__(self):
-        self._by_id: dict[int, 'CardTemplate'] = {}
-        self._by_name: dict[str, 'CardTemplate'] = {}
+    def __init__(self, templates: Iterable[CardTemplate]):
+        by_id = {}
+        by_name = {}
+
+        for template in templates:
+            if template.id in by_id:
+                raise ValueError(f"Duplicate card ID {template.id}")
+
+            template_name = normalize_content_name(template.name)
+            if template_name in by_name:
+                raise ValueError(f"Duplicate card name {template.name}")
+
+            by_id[template.id] = template
+            by_name[template_name] = template
+
+        self._by_id = by_id
+        self._by_name = by_name
+
+        self._templates = tuple(
+            sorted(by_id.values(), key=lambda template: template.id)
+        )
+        self._ordered_templates = tuple(
+            sorted(
+                by_id.values(),
+                key=lambda template: (template.cost, template.id),
+            )
+        )
 
     def get(self, fixed_id: int) -> 'CardTemplate':
         return self._by_id[fixed_id]
 
     def get_by_name(self, name: str) -> 'CardTemplate':
-        return self._by_name[name.lower()]
+        return self._by_name[normalize_content_name(name)]
 
-    def _load_template(self, d: dict) -> 'CardTemplate':
+    @property
+    def templates(self) -> tuple[CardTemplate, ...]:
+        return self._templates
+
+    @property
+    def ordered_templates(self) -> tuple[CardTemplate, ...]:
+        return self._ordered_templates
+
+    @staticmethod
+    def _load_template(d: dict) -> 'CardTemplate':
         card_id = d['id']
 
         keywords = CardKeyword.NONE
@@ -36,7 +73,7 @@ class CardLibrary:
             for status_name, counter in d['statuses'].items()
         }
 
-        active_abilities = set(
+        active_abilities = frozenset(
             CardToggleableAbility[ability_name]
             for ability_name in d['active_abilities']
         )
@@ -68,38 +105,9 @@ class CardLibrary:
             case _:
                 raise ValueError("Invalid card type")
 
-    def set_templates(self, templates: Iterable[CardTemplate]) -> None:
-        by_id = {}
-        by_name = {}
-
-        for template in templates:
-            if template.id in by_id:
-                raise ValueError(f"Duplicate card ID {template.id}")
-
-            template_name = template.name.lower()
-            if template_name in by_name:
-                raise ValueError(f"Duplicate card name {template.name}")
-
-            by_id[template.id] = template
-            by_name[template_name] = template
-
-        self._by_id = by_id
-        self._by_name = by_name
-
-    def load_templates(
-        self,
-        data: list[dict],
-        *,
-        extra_templates: Iterable[CardTemplate] = (),
-    ) -> None:
-        templates = [
-            self._load_template(d)
-            for d in data
-        ]
-        templates.extend(extra_templates)
-        templates.sort(key=lambda template: template.id)
-
-        self.set_templates(templates)
-
-
-LIBRARY = CardLibrary()
+    @classmethod
+    def from_records(cls, data: list[dict]) -> 'CardLibrary':
+        return cls(
+            cls._load_template(record)
+            for record in data
+        )

@@ -148,7 +148,7 @@ class HammerOfJustice(Monster):
         TARGET.buff(attack=+3, hp=+3)
         >> TARGET.add_keyword(HASTE)
         >> SLOT_OF(TARGET).enchant(
-            ENCHANTMENT_BY_NAME('gersons-hammer')
+            ENCHANTMENT_BY_NAME("Gerson's Hammer")
         )
     )
 

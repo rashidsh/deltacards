@@ -1807,7 +1807,7 @@ class FrontendAdapter:
                 'action': 'getDefeat',
                 **common,
                 'endType': 'NORMAL',
-                'soul': viewer.soul.__class__.__name__.upper(),
+                'soul': viewer.soul.definition_id.upper(),
             }
 
         return {

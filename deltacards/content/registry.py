@@ -6,8 +6,6 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Literal, TypeAlias
 
-from deltacards.model.templates import CardTemplate
-
 
 ContentKind: TypeAlias = Literal[
     'card',
@@ -43,7 +41,12 @@ class CustomImage:
     path: str
 
 
-ImageSpec: TypeAlias = ExistingImage | CustomImage | None
+@dataclass(frozen=True, slots=True)
+class ClientImage:
+    asset_id: str | None
+
+
+ImageSpec: TypeAlias = ExistingImage | CustomImage | ClientImage | None
 
 DEFAULT_ENCHANTMENT_OVERLAY_IMAGE = ExistingImage(name='Incinerator')
 
@@ -79,6 +82,8 @@ class PublishedAsset:
 class FrontendImage:
     name: str
     url: str | None
+    client_asset_id: str | None = None
+    client_managed: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +97,8 @@ class FrontendEnchantmentImages:
     background_url: str
     overlay_url: str
     log_url: str
+    background_client_asset_id: str | None = None
+    background_client_managed: bool = False
 
 
 def _ordinary_asset_name(name: str) -> str:
@@ -128,10 +135,6 @@ def _safe_key(value: ContentId) -> str:
     return re.sub(r'[^a-z0-9]+', '-', str(value).lower()).strip('-')
 
 
-def is_custom_content(kind: ContentKind, content_id: ContentId) -> bool:
-    return CONTENT.is_custom(kind, content_id)
-
-
 def enchantment_asset_name(name: str) -> str:
     words = re.split(r'[\s_-]+', name.strip())
     return ''.join(
@@ -157,15 +160,11 @@ def frontend_asset_name(kind: ContentKind, name: str) -> str:
 
 class ContentRegistry:
     def __init__(self):
-        self._card_templates: dict[int, CardTemplate] = {}
         self._presentations: dict[ContentKey, ContentPresentation] = {}
 
         self._assets_by_content: dict[ContentAssetKey, PublishedAsset] = {}
         self._assets_by_url: dict[str, PublishedAsset] = {}
-
-    @property
-    def card_templates(self) -> tuple[CardTemplate, ...]:
-        return tuple(self._card_templates.values())
+        self._finalized = False
 
     @property
     def presentations(self) -> tuple[ContentPresentation, ...]:
@@ -175,23 +174,13 @@ class ContentRegistry:
     def published_assets(self) -> tuple[PublishedAsset, ...]:
         return tuple(self._assets_by_url.values())
 
-    def register_card(
-        self,
-        template: CardTemplate,
-        presentation: ContentPresentation,
-    ) -> None:
-        if template.id in self._card_templates:
-            raise ValueError(
-                f"Python card template {template.id} is already registered"
-            )
-
-        self._card_templates[template.id] = template
-        self.register_presentation(presentation)
-
     def register_presentation(
         self,
         presentation: ContentPresentation,
     ) -> None:
+        if self._finalized:
+            raise RuntimeError("Content registry is already finalized")
+
         if presentation.key in self._presentations:
             raise ValueError(
                 f"Presentation for {presentation.key!r} is already registered"
@@ -225,10 +214,13 @@ class ContentRegistry:
 
     def finalize(self) -> None:
         """
-        Resolve and freeze custom image files.
+        Resolve and finalize custom image files.
 
         This is run after all custom modules have been imported and before games are created.
         """
+        if self._finalized:
+            return
+
         assets_by_content = {}
         assets_by_url = {}
 
@@ -279,6 +271,7 @@ class ContentRegistry:
 
         self._assets_by_content = assets_by_content
         self._assets_by_url = assets_by_url
+        self._finalized = True
 
     def asset_at_url(
         self,
@@ -319,6 +312,14 @@ class ContentRegistry:
             return FrontendImage(
                 name=_custom_asset_name(kind, content_id, role),
                 url=asset.url,
+            )
+
+        if isinstance(image, ClientImage):
+            return FrontendImage(
+                name=_custom_asset_name(kind, content_id, role),
+                url=None,
+                client_asset_id=image.asset_id,
+                client_managed=True,
             )
 
         raise TypeError(
@@ -443,6 +444,8 @@ class ContentRegistry:
             background_url=background_url,
             overlay_url=overlay_url,
             log_url=log_url,
+            background_client_asset_id=background.client_asset_id,
+            background_client_managed=background.client_managed,
         )
 
     def localization_keys(
@@ -498,6 +501,3 @@ class ContentRegistry:
             result[description_key] = text.description or ""
 
         return result
-
-
-CONTENT = ContentRegistry()

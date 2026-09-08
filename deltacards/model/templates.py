@@ -27,7 +27,7 @@ class CardTemplate:
     abilities: frozenset[Ability]
     keywords: CardKeyword
     statuses: dict[CardStatusId, int]
-    active_abilities: set[CardToggleableAbility]
+    active_abilities: frozenset[CardToggleableAbility]
     expansion: Expansion
     tribes: tuple[Tribe, ...]
     soul_id: str | None

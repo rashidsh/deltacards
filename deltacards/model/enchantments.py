@@ -9,20 +9,6 @@ if TYPE_CHECKING:
     from deltacards.actions.base import ActionContext
     from deltacards.model.player import Player
 
-ENCHANTMENTS: dict[str, type['Enchantment']] = {}
-
-
-def enchantment(enchantment_id: str):
-    def wrapper(class_: type['Enchantment']):
-        if enchantment_id in ENCHANTMENTS:
-            raise ValueError(f"Enchantment with ID {enchantment_id} already exists")
-
-        class_.definition_id = enchantment_id
-        ENCHANTMENTS[enchantment_id] = class_
-        return class_
-
-    return wrapper
-
 
 class Enchantment(Entity):
     __slots__ = 'owner_id', 'controller_id', 'slot_id', 'counter', 'active', 'creator_id', 'creator_base_identity'

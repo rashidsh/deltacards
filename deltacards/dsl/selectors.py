@@ -1,14 +1,11 @@
 from dataclasses import dataclass
-from typing import Any, ClassVar, Literal, TYPE_CHECKING
+from typing import Any, Literal, TYPE_CHECKING
 
-from deltacards.content.library import LIBRARY
 from deltacards.dsl.core import TargetSelector, TargetingError, ValueExpr, resolve_selector_value, to_value
-from deltacards.model.artifacts import ARTIFACTS
 from deltacards.model.cards import Card, CardZone, Monster
-from deltacards.model.enchantments import ENCHANTMENTS, Enchantment
+from deltacards.model.enchantments import Enchantment
 from deltacards.model.slots import BoardSlot
 from deltacards.model.snapshots import MonsterSnapshot
-from deltacards.model.templates import CardTemplate
 
 if TYPE_CHECKING:
     from deltacards.actions.standard import ActionContext
@@ -401,18 +398,8 @@ def RIGHT_OF_HAND(x: TargetSelector) -> RelativeHandRangeSelector:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class CardLibrarySelector(TargetSelector):
-    _cards_cache: ClassVar[list[CardTemplate] | None] = None
-
     def eval(self, ctx: 'ActionContext', **kwargs) -> list[Any]:
-        cards = CardLibrarySelector._cards_cache
-        if cards is None:
-            cards = sorted(
-                LIBRARY._by_id.values(),
-                key=lambda card: (card.cost, card.id),
-            )
-            CardLibrarySelector._cards_cache = cards
-
-        return cards
+        return list(ctx.game.content.cards.ordered_templates)
 
     def __repr__(self) -> str:
         return "CARD_LIBRARY"
@@ -423,7 +410,7 @@ class CardByNameSelector(TargetSelector):
     name: str
 
     def eval(self, ctx: 'ActionContext', **kwargs) -> list[Any]:
-        return [LIBRARY.get_by_name(self.name)]
+        return [ctx.game.content.cards.get_by_name(self.name)]
 
     def __repr__(self) -> str:
         return f"CARD_BY_NAME({self.name!r})"
@@ -442,7 +429,11 @@ class ArtifactByNameSelector(TargetSelector):
     name: str
 
     def eval(self, ctx: 'ActionContext', **kwargs) -> list[Any]:
-        return [artifact for artifact in ARTIFACTS.values() if artifact.name == self.name]
+        artifact = ctx.game.content.artifact_by_name(self.name)
+        if artifact is None:
+            return []
+
+        return [artifact]
 
     def __repr__(self) -> str:
         return f"ARTIFACT_BY_NAME({self.name!r})"
@@ -462,7 +453,11 @@ class PlayerArtifactSelector(TargetSelector):
         if player is None:
             return []
 
-        return [artifact for artifact in player.artifacts if artifact.name == self.name]
+        definition = ctx.game.content.artifact_by_name(self.name)
+        if definition is None:
+            return []
+
+        return [artifact for artifact in player.artifacts if type(artifact) is definition]
 
     def __repr__(self) -> str:
         return f"ARTIFACT_OF_PLAYER({self.player!r}, name={self.name})"
@@ -533,7 +528,7 @@ class SlotOfSelector(TargetSelector):
         return result
 
     def __repr__(self) -> str:
-        return f"SLOT_OF({self.target!r})"
+        return f"SLOT_OF({self.inner!r})"
 
 
 def SLOT_OF(target: Any) -> SlotOfSelector:
@@ -584,7 +579,11 @@ class EnchantmentByNameSelector(TargetSelector):
     name: str
 
     def eval(self, ctx: 'ActionContext', **kwargs) -> list[Any]:
-        return [enchantment for name, enchantment in ENCHANTMENTS.items() if name == self.name]
+        enchantment = ctx.game.content.enchantment_by_name(self.name)
+        if enchantment is None:
+            return []
+
+        return [enchantment]
 
     def __repr__(self) -> str:
         return f"ENCHANTMENT_BY_NAME({self.name!r})"
@@ -657,13 +656,13 @@ class NextLostSoulSelector(TargetSelector):
         player = ctx.game.player(player_id)
 
         if player.next_lost_soul is not None:
-            card = LIBRARY.get_by_name(lost_soul_card_names[player.next_lost_soul])
+            card = ctx.game.content.cards.get_by_name(lost_soul_card_names[player.next_lost_soul])
             player.next_lost_soul += 1
             if player.next_lost_soul >= len(lost_soul_card_names):
                 player.next_lost_soul = 0
 
         else:
-            card = LIBRARY.get_by_name(ctx.game.rng.choice(lost_soul_card_names))
+            card = ctx.game.content.cards.get_by_name(ctx.game.rng.choice(lost_soul_card_names))
 
         return [card]
 

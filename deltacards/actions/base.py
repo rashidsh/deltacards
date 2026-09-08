@@ -70,6 +70,10 @@ class Arg(Generic[T]):
         self.name: str | None = None
         self.expected_type: Any | None = None
 
+    @property
+    def required(self) -> bool:
+        return self.default is _MISSING
+
     def __set_name__(self, owner, name: str) -> None:
         self.name = name
 
@@ -121,15 +125,19 @@ class Action:
     many_arg_names: tuple[str, ...] = ()
     primary_result_type: ClassVar[type[ActionResult] | None] = None
 
-    _arg_defs = {}
+    _arg_defs: ClassVar[dict[str, Arg[Any]]] = {}
 
     def __init__(self, **kwargs):
-        self._exprs: dict[str, Any] = {}
-        self._exprs.update(kwargs)
+        unknown = sorted(set(kwargs) - self._arg_defs.keys())
+        if unknown:
+            names = ', '.join(repr(name) for name in unknown)
+            raise TypeError(f"Unexpected argument(s) for {type(self).__name__}: {names}")
+
+        self._exprs: dict[str, Any] = dict(kwargs)
 
         # Validate required args were provided
         for name, arg_def in self._arg_defs.items():
-            if name not in self._exprs and arg_def.default is _MISSING:
+            if name not in self._exprs and arg_def.required:
                 raise TypeError(f"Missing required argument: {name!r}")
 
     def __init_subclass__(cls) -> None:
@@ -181,6 +189,10 @@ class Action:
     def __repr__(self):
         kwargs_str = ', '.join(f"{key}={value!r}" for key, value in self._exprs.items())
         return f"{self.__class__.__name__}({kwargs_str})"
+
+    @classmethod
+    def arg_definitions(cls) -> dict[str, Arg[Any]]:
+        return dict(cls._arg_defs)
 
     def to(self, to: Any, else_: Any | None = None) -> 'EffectBase':
         from deltacards.engine.effects import Then, effectify

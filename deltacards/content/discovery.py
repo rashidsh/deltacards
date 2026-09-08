@@ -72,13 +72,12 @@ def import_content_file(path: Path) -> ModuleType:
     return module
 
 
-def load_custom_content(paths: Iterable[Path] | None = None) -> tuple[Path, ...]:
+def load_custom_content(paths: Iterable[Path] | None = None) -> tuple[ModuleType, ...]:
     if paths is None:
         paths = [Path.cwd() / 'custom_content']
 
     files = discover_content_files(paths)
-
-    for path in files:
+    return tuple(
         import_content_file(path)
-
-    return files
+        for path in files
+    )

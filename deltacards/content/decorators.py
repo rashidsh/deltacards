@@ -7,17 +7,14 @@ from deltacards.model.artifacts import (
     Artifact,
     ArtifactRarity,
     QuestArtifact,
-    artifact as register_artifact,
 )
 from deltacards.model.cards import (
     Card,
     Monster,
     Spell,
-    card as register_card,
 )
 from deltacards.model.enchantments import (
     Enchantment,
-    enchantment as register_enchantment,
 )
 from deltacards.model.enums import (
     Ability,
@@ -30,14 +27,14 @@ from deltacards.model.enums import (
 )
 from deltacards.model.souls import (
     Soul,
-    soul as register_soul,
 )
 from deltacards.model.templates import (
+    CardTemplate,
     MonsterTemplate,
     SpellTemplate,
 )
+from .registration import ContentRegistration, attach_registration
 from .registry import (
-    CONTENT,
     ContentPresentation,
     ImageSpec,
     LocalizedText,
@@ -123,17 +120,51 @@ def _initial_active_abilities(
     *,
     declared_abilities: frozenset[Ability],
     active_abilities: set[CardToggleableAbility] | None,
-) -> set[CardToggleableAbility]:
+) -> frozenset[CardToggleableAbility]:
     if active_abilities is not None:
-        return set(active_abilities)
+        return frozenset(active_abilities)
 
     # A Python-authored Shock, Support, Bullseye, or Program ability should
     # be usable by default. Passing an explicit empty set opts out.
-    return {
+    return frozenset({
         toggleable
         for ability, toggleable in _TOGGLEABLE_ABILITIES.items()
         if ability in declared_abilities
-    }
+    })
+
+
+def _attach(
+    class_: type,
+    *,
+    kind: str,
+    content_id: int | str,
+    template: CardTemplate | None = None,
+    presentation: ContentPresentation | None = None,
+):
+    return attach_registration(
+        class_,
+        ContentRegistration(
+            kind=kind,
+            content_id=content_id,
+            implementation=class_,
+            template=template,
+            presentation=presentation,
+        ),
+    )
+
+
+def _register_card(card_id: int):
+    def wrapper(class_: type[Card]) -> type[Card]:
+        if not issubclass(class_, Card):
+            raise TypeError("A card definition must inherit Card")
+
+        return _attach(
+            class_,
+            kind='card',
+            content_id=card_id,
+        )
+
+    return wrapper
 
 
 def _define_card(
@@ -195,22 +226,23 @@ def _define_card(
         else:
             raise TypeError(f"A card definition must inherit Monster or Spell")
 
-        register_card(card_id)(class_)
-
-        CONTENT.register_card(
-            template,
-            _presentation(
-                class_=class_,
-                kind='card',
-                content_id=card_id,
-                name=name,
-                description=description,
-                image=image,
-                localizations=localizations,
-            ),
+        presentation = _presentation(
+            class_=class_,
+            kind='card',
+            content_id=card_id,
+            name=name,
+            description=description,
+            image=image,
+            localizations=localizations,
         )
 
-        return class_
+        return _attach(
+            class_,
+            kind='card',
+            content_id=card_id,
+            template=template,
+            presentation=presentation,
+        )
 
     return wrapper
 
@@ -224,9 +256,24 @@ def card(
     With keyword arguments, define a complete Python-authored card.
     """
     if not definition:
-        return register_card(card_id)
+        return _register_card(card_id)
 
     return _define_card(card_id, **definition)
+
+
+def _register_artifact(artifact_id: int):
+    def wrapper(class_: type[Artifact]) -> type[Artifact]:
+        if not issubclass(class_, Artifact):
+            raise TypeError("An Artifact definition must inherit Artifact")
+
+        class_.definition_id = artifact_id
+        return _attach(
+            class_,
+            kind='artifact',
+            content_id=artifact_id,
+        )
+
+    return wrapper
 
 
 def _define_artifact(
@@ -270,22 +317,24 @@ def _define_artifact(
             if overlay is not None:
                 raise ValueError(f"Ordinary Artifact {artifact_id} cannot declare overlay")
 
-        register_artifact(artifact_id)(class_)
-
-        CONTENT.register_presentation(
-            _presentation(
-                class_=class_,
-                kind='artifact',
-                content_id=artifact_id,
-                name=name,
-                description=description,
-                image=image,
-                overlay=overlay,
-                localizations=localizations,
-            )
+        class_.definition_id = artifact_id
+        presentation = _presentation(
+            class_=class_,
+            kind='artifact',
+            content_id=artifact_id,
+            name=name,
+            description=description,
+            image=image,
+            overlay=overlay,
+            localizations=localizations,
         )
 
-        return class_
+        return _attach(
+            class_,
+            kind='artifact',
+            content_id=artifact_id,
+            presentation=presentation,
+        )
 
     return wrapper
 
@@ -295,9 +344,27 @@ def artifact(
     **definition: Any,
 ):
     if not definition:
-        return register_artifact(artifact_id)
+        return _register_artifact(artifact_id)
 
     return _define_artifact(artifact_id, **definition)
+
+
+def _register_soul(soul_id: str):
+    def wrapper(class_: type[Soul]) -> type[Soul]:
+        if not issubclass(class_, Soul):
+            raise TypeError("A Soul definition must inherit Soul")
+
+        class_.definition_id = soul_id
+        if 'name' not in class_.__dict__:
+            class_.name = class_.__name__.upper()
+
+        return _attach(
+            class_,
+            kind='soul',
+            content_id=soul_id,
+        )
+
+    return wrapper
 
 
 def _define_soul(
@@ -314,21 +381,23 @@ def _define_soul(
 
         class_.name = name
 
-        register_soul(soul_id)(class_)
-
-        CONTENT.register_presentation(
-            _presentation(
-                class_=class_,
-                kind='soul',
-                content_id=soul_id,
-                name=name,
-                description=description,
-                image=image,
-                localizations=localizations,
-            )
+        class_.definition_id = soul_id
+        presentation = _presentation(
+            class_=class_,
+            kind='soul',
+            content_id=soul_id,
+            name=name,
+            description=description,
+            image=image,
+            localizations=localizations,
         )
 
-        return class_
+        return _attach(
+            class_,
+            kind='soul',
+            content_id=soul_id,
+            presentation=presentation,
+        )
 
     return wrapper
 
@@ -338,9 +407,24 @@ def soul(
     **definition: Any,
 ):
     if not definition:
-        return register_soul(soul_id)
+        return _register_soul(soul_id)
 
     return _define_soul(soul_id, **definition)
+
+
+def _register_enchantment(enchantment_id: str):
+    def wrapper(class_: type[Enchantment]) -> type[Enchantment]:
+        if not issubclass(class_, Enchantment):
+            raise TypeError("An Enchantment definition must inherit Enchantment")
+
+        class_.definition_id = enchantment_id
+        return _attach(
+            class_,
+            kind='enchantment',
+            content_id=enchantment_id,
+        )
+
+    return wrapper
 
 
 def _define_enchantment(
@@ -361,23 +445,25 @@ def _define_enchantment(
         class_.name = name
         class_.initial_counter = initial_counter
 
-        register_enchantment(enchantment_id)(class_)
-
-        CONTENT.register_presentation(
-            _presentation(
-                class_=class_,
-                kind='enchantment',
-                content_id=enchantment_id,
-                name=name,
-                description=description,
-                image=image,
-                overlay=overlay,
-                log=log,
-                localizations=localizations,
-            )
+        class_.definition_id = enchantment_id
+        presentation = _presentation(
+            class_=class_,
+            kind='enchantment',
+            content_id=enchantment_id,
+            name=name,
+            description=description,
+            image=image,
+            overlay=overlay,
+            log=log,
+            localizations=localizations,
         )
 
-        return class_
+        return _attach(
+            class_,
+            kind='enchantment',
+            content_id=enchantment_id,
+            presentation=presentation,
+        )
 
     return wrapper
 
@@ -387,6 +473,6 @@ def enchantment(
     **definition: Any,
 ):
     if not definition:
-        return register_enchantment(enchantment_id)
+        return _register_enchantment(enchantment_id)
 
     return _define_enchantment(enchantment_id, **definition)

@@ -1,5 +1,4 @@
 from deltacards.dsl.api import *
-from deltacards.model.artifacts import ArtifactRarity, QuestArtifact, artifact
 
 
 @artifact(76)

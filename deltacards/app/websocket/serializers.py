@@ -2,12 +2,10 @@ import json
 from typing import Any, TYPE_CHECKING
 
 from deltacards.content.registry import (
-    CONTENT,
     enchantment_asset_name,
     soul_frontend_name,
 )
 from deltacards.model.artifacts import (
-    ARTIFACTS,
     Artifact,
     ArtifactRarity,
     QuestArtifact,
@@ -30,7 +28,7 @@ from deltacards.model.snapshots import (
     PlayerSnapshot,
     SoulSnapshot,
 )
-from deltacards.model.souls import SOULS, Soul
+from deltacards.model.souls import Soul
 
 from .config import (
     AssetConfig,
@@ -155,14 +153,14 @@ class ViewSerializer:
             return {
                 'typeCreator': 2,
                 'id': 0,
-                'name': SOULS[creator_value].__name__,
+                'name': soul_frontend_name(str(creator_value)),
             }
 
         if creator_kind == 'enchantment':
             return {
                 'typeCreator': 3,
                 'id': 0,
-                'name': creator_value,
+                'name': enchantment_asset_name(str(creator_value)),
             }
 
         return None
@@ -221,10 +219,15 @@ class ViewSerializer:
     ) -> dict[str, Any]:
         template = card.template
 
-        frontend_image = CONTENT.image(
+        default_image = (
+            template.image
+            if isinstance(template.image, str)
+            else template.name
+        )
+        frontend_image = self.game.content.presentation.image(
             'card',
             template.id,
-            default_name=template.image,
+            default_name=default_image,
         )
 
         result = {
@@ -295,15 +298,15 @@ class ViewSerializer:
             'name': soul_frontend_name(soul.definition_id),
         }
 
-    @staticmethod
     def artifact_view(
+        self,
         artifact: Artifact | ArtifactSnapshot,
     ) -> dict[str, Any]:
         definition_id = artifact.definition_id
-        artifact_type = ARTIFACTS[definition_id]
+        artifact_type = self.game.content.artifacts[definition_id]
         is_quest = issubclass(artifact_type, QuestArtifact)
 
-        artifact_images = CONTENT.artifact_images(
+        artifact_images = self.game.content.presentation.artifact_images(
             definition_id,
             default_name=artifact.name,
         )

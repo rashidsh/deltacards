@@ -83,7 +83,7 @@ class Aftermath(Spell):
         (ENEMY_SLOTS & OCCUPIED_SLOT)
         >> RANDOM(2)
     ).enchant(
-        ENCHANTMENT_BY_NAME('scattering-dust')
+        ENCHANTMENT_BY_NAME("Scattering Dust")
     )
 
 

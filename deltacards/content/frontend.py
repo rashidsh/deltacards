@@ -1,21 +1,20 @@
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from hashlib import sha256
-from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
-from deltacards.content.card_data import decode_source_cards
+from deltacards.content.library import CardLibrary
 from deltacards.content.registry import (
-    CONTENT,
+    ContentRegistry,
     enchantment_asset_name,
     soul_frontend_name,
 )
 from deltacards.model.artifacts import (
-    ARTIFACTS,
+    Artifact,
     ArtifactRarity,
     QuestArtifact,
 )
-from deltacards.model.enchantments import ENCHANTMENTS
+from deltacards.model.enchantments import Enchantment
 from deltacards.model.enums import (
     CardKeyword,
 )
@@ -27,6 +26,7 @@ from deltacards.model.templates import (
     CardTemplate,
     MonsterTemplate,
 )
+from deltacards.model.souls import Soul
 
 
 def _status_name(name: str) -> str:
@@ -81,11 +81,19 @@ def _template_statuses(template: CardTemplate) -> list[dict[str, Any]]:
     return result
 
 
-def custom_card_view(template: CardTemplate) -> dict[str, Any]:
-    image = CONTENT.image(
+def custom_card_view(
+    template: CardTemplate,
+    presentation: ContentRegistry,
+) -> dict[str, Any]:
+    default_image = (
+        template.image
+        if isinstance(template.image, str)
+        else template.name
+    )
+    image = presentation.image(
         'card',
         template.id,
-        default_name=template.image,
+        default_name=default_image,
     )
 
     result = {
@@ -117,6 +125,9 @@ def custom_card_view(template: CardTemplate) -> dict[str, Any]:
         result['imageUrl'] = image.url
         result['baseImageUrl'] = image.url
 
+    if image.client_managed:
+        result['clientAssetId'] = image.client_asset_id
+
     if template.soul_id is not None:
         result['soul'] = {
             'name': template.soul_id.upper(),
@@ -134,9 +145,12 @@ def custom_card_view(template: CardTemplate) -> dict[str, Any]:
     return result
 
 
-def custom_artifact_view(artifact_id: int) -> dict[str, Any]:
-    artifact_type = ARTIFACTS[artifact_id]
-    artifact_images = CONTENT.artifact_images(
+def custom_artifact_view(
+    artifact_id: int,
+    artifact_type: type[Artifact],
+    presentation: ContentRegistry,
+) -> dict[str, Any]:
+    artifact_images = presentation.artifact_images(
         artifact_id,
         default_name=artifact_type.name,
     )
@@ -147,6 +161,7 @@ def custom_artifact_view(artifact_id: int) -> dict[str, Any]:
         'id': artifact_id,
         'name': artifact_type.name,
         'image': image.name,
+        'rarity': artifact_type.rarity.name,
         'legendary': artifact_type.rarity is ArtifactRarity.LEGENDARY,
         'artifactType': 1 if is_quest else 0,
         'custom': 0,
@@ -155,6 +170,9 @@ def custom_artifact_view(artifact_id: int) -> dict[str, Any]:
 
     if image.url is not None:
         result['imageUrl'] = image.url
+
+    if image.client_managed:
+        result['clientAssetId'] = image.client_asset_id
 
     if is_quest:
         goal = artifact_type.quest_goal
@@ -168,10 +186,13 @@ def custom_artifact_view(artifact_id: int) -> dict[str, Any]:
     return result
 
 
-def custom_enchantment_view(enchantment_id: str) -> dict[str, Any]:
-    enchantment_type = ENCHANTMENTS[enchantment_id]
+def custom_enchantment_view(
+    enchantment_id: str,
+    enchantment_type: type[Enchantment],
+    presentation: ContentRegistry,
+) -> dict[str, Any]:
     frontend_name = enchantment_asset_name(enchantment_id)
-    images = CONTENT.enchantment_images(
+    images = presentation.enchantment_images(
         enchantment_id,
         default_name=enchantment_type.name,
     )
@@ -184,15 +205,22 @@ def custom_enchantment_view(enchantment_id: str) -> dict[str, Any]:
         'logUrl': images.log_url,
     }
 
+    if images.background_client_managed:
+        result['clientAssetId'] = images.background_client_asset_id
+
     return result
 
 
-def custom_soul_view(soul_id: str) -> dict[str, Any]:
+def custom_soul_view(
+    soul_id: str,
+    soul_type: type[Soul],
+    presentation: ContentRegistry,
+) -> dict[str, Any]:
     frontend_name = soul_frontend_name(soul_id)
-    image = CONTENT.image(
+    image = presentation.image(
         'soul',
         soul_id,
-        default_name=frontend_name,
+        default_name=soul_type.name,
     )
 
     result = {
@@ -202,6 +230,9 @@ def custom_soul_view(soul_id: str) -> dict[str, Any]:
 
     if image.url is not None:
         result['imageUrl'] = image.url
+
+    if image.client_managed:
+        result['clientAssetId'] = image.client_asset_id
 
     return result
 
@@ -222,58 +253,82 @@ def _cards_version(cards: list[dict[str, Any]]) -> int:
 
 @dataclass(frozen=True, slots=True)
 class FrontendContentCatalog:
-    cards: tuple[dict[str, Any], ...]
-
-    custom_cards: tuple[dict[str, Any], ...]
-    custom_artifacts: tuple[dict[str, Any], ...]
-    custom_enchantments: tuple[dict[str, Any], ...]
-    custom_souls: tuple[dict[str, Any], ...]
-
     cards_version: int
+    cards: list
 
-    _custom_cards_by_id: dict[int, dict[str, Any]] = field(repr=False)
-    _custom_artifacts_by_id: dict[int, dict[str, Any]] = field(repr=False)
+    _custom_content: dict
+    _custom_cards_by_id: dict[int, dict]
+    _custom_artifacts_by_id: dict[int, dict]
 
     @classmethod
-    def build(cls, source_cards_path: Path) -> 'FrontendContentCatalog':
-        source_cards = decode_source_cards(
-            source_cards_path.read_bytes()
-        )
-
+    def build(
+        cls,
+        *,
+        source_cards: list[dict],
+        cards: CardLibrary,
+        artifacts: Mapping[int, type[Artifact]],
+        enchantments: Mapping[str, type[Enchantment]],
+        souls: Mapping[str, type[Soul]],
+        presentation: ContentRegistry,
+    ) -> 'FrontendContentCatalog':
         custom_cards = [
-            custom_card_view(template)
-            for template in sorted(
-                CONTENT.card_templates,
-                key=lambda item: item.id,
+            custom_card_view(
+                cards.get(card_id),
+                presentation,
             )
+            for card_id in presentation.custom_ids('card')
         ]
 
         custom_artifacts = [
-            custom_artifact_view(artifact_id)
-            for artifact_id in CONTENT.custom_ids('artifact')
+            custom_artifact_view(
+                artifact_id,
+                artifacts[artifact_id],
+                presentation,
+            )
+            for artifact_id in presentation.custom_ids('artifact')
         ]
         custom_enchantments = [
-            custom_enchantment_view(enchantment_id)
-            for enchantment_id in CONTENT.custom_ids('enchantment')
+            custom_enchantment_view(
+                enchantment_id,
+                enchantments[enchantment_id],
+                presentation,
+            )
+            for enchantment_id in presentation.custom_ids('enchantment')
         ]
         custom_souls = [
-            custom_soul_view(soul_id)
-            for soul_id in CONTENT.custom_ids('soul')
+            custom_soul_view(
+                soul_id,
+                souls[soul_id],
+                presentation,
+            )
+            for soul_id in presentation.custom_ids('soul')
         ]
 
-        cards = [
-            *source_cards,
-            *custom_cards,
-        ]
-        cards.sort(key=lambda card: int(card['fixedId']))
+        frontend_cards = sorted(
+            [
+                *source_cards,
+                *custom_cards,
+            ],
+            key=lambda card: int(card['fixedId']),
+        )
+
+        custom_content = {
+            'cards': custom_cards,
+            'artifacts': custom_artifacts,
+            'enchantments': custom_enchantments,
+            'souls': custom_souls,
+            'contentIds': {
+                'card': list(presentation.custom_ids('card')),
+                'artifact': list(presentation.custom_ids('artifact')),
+                'enchantment': list(presentation.custom_ids('enchantment')),
+                'soul': list(presentation.custom_ids('soul')),
+            },
+        }
 
         return cls(
-            cards=tuple(cards),
-            custom_cards=tuple(custom_cards),
-            custom_artifacts=tuple(custom_artifacts),
-            custom_enchantments=tuple(custom_enchantments),
-            custom_souls=tuple(custom_souls),
-            cards_version=_cards_version(cards),
+            cards_version=_cards_version(frontend_cards),
+            cards=frontend_cards,
+            _custom_content=custom_content,
             _custom_cards_by_id={
                 int(card['id']): card
                 for card in custom_cards
@@ -283,6 +338,22 @@ class FrontendContentCatalog:
                 for artifact in custom_artifacts
             },
         )
+
+    @property
+    def custom_cards(self) -> tuple[dict[str, Any], ...]:
+        return tuple(self.custom_content_view()['cards'])
+
+    @property
+    def custom_artifacts(self) -> tuple[dict[str, Any], ...]:
+        return tuple(self.custom_content_view()['artifacts'])
+
+    @property
+    def custom_enchantments(self) -> tuple[dict[str, Any], ...]:
+        return tuple(self.custom_content_view()['enchantments'])
+
+    @property
+    def custom_souls(self) -> tuple[dict[str, Any], ...]:
+        return tuple(self.custom_content_view()['souls'])
 
     def is_custom_card(self, card_id: int) -> bool:
         return card_id in self._custom_cards_by_id
@@ -297,15 +368,4 @@ class FrontendContentCatalog:
         return self._custom_artifacts_by_id.get(artifact_id)
 
     def custom_content_view(self) -> dict[str, Any]:
-        return {
-            'cards': list(self.custom_cards),
-            'artifacts': list(self.custom_artifacts),
-            'enchantments': list(self.custom_enchantments),
-            'souls': list(self.custom_souls),
-            'contentIds': {
-                'card': list(CONTENT.custom_ids('card')),
-                'artifact': list(CONTENT.custom_ids('artifact')),
-                'enchantment': list(CONTENT.custom_ids('enchantment')),
-                'soul': list(CONTENT.custom_ids('soul')),
-            },
-        }
+        return self._custom_content
