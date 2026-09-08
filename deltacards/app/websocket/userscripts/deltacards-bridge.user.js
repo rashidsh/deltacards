@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         deltacards Bridge
-// @version      0.3.0
+// @version      0.3.1
 // @description  Connects the Undercards web client to a local deltacards engine instance for offline play and testing.
 // @author       rashidsh
 // @homepageURL  https://github.com/rashidsh/deltacards
@@ -2044,6 +2044,12 @@
     'LOOP',
   ];
 
+  const EXPANSIONS = [
+    'BASE',
+    'DELTARUNE',
+    'UTY',
+  ];
+
   const TRIBES = new Set([
     'ALL',
     'TEMMIE',
@@ -2307,11 +2313,7 @@
       ['Ability', 'ABILITY'],
       ['Fatigue', 'FATIGUE'],
     ],
-    expansion: [
-      ['BASE', 'BASE'],
-      ['DELTARUNE', 'DELTARUNE'],
-      ['UTY', 'UTY'],
-    ],
+    expansion: [...EXPANSIONS].map((value) => [value, value]),
     killCause: [
       ['Combat', 'COMBAT'],
       ['Damage effect', 'DAMAGE_EFFECT'],
@@ -3930,7 +3932,7 @@
     const extension = match[1].toUpperCase();
     const rarity = match[2].toUpperCase();
 
-    if (extension !== 'BASE') {
+    if (!EXPANSIONS.has(extension)) {
       throw new Error(
         `Expansion ${JSON.stringify(extension)} is not supported.`
       );
