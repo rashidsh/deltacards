@@ -524,9 +524,16 @@ class Berdlycoaster(Monster):
 
 @card(673)
 class BerdlyPlush(Monster):
-    magic = Check(HAND & TOKEN & (BASE_COST >= 3)).to(
-        ((HAND & NON_TOKEN) >> RANDOM(3)).buff(cost=-1)
+    need = EXISTS(
+        HAND
+        & TOKEN
+        & (BASE_COST >= 3)
     )
+
+    magic = (
+        (HAND & NON_TOKEN)
+        >> RANDOM(3)
+    ).buff(cost=-1)
 
 
 @card(686)
@@ -782,8 +789,9 @@ class Wicabel(Monster):
 
 @card(922)
 class CoolerCooler(Monster):
-    shock = SELF.hit(1).to(
-        GENERATE_CARD("Mizzle").summon()
+    shock = Check(EMPTY_SLOTS(BOARD) >= 1).to(
+        SELF.hit(1)
+        >> GENERATE_CARD("Mizzle").summon()
     )
 
 
@@ -916,4 +924,23 @@ class GiantShrubbery(Monster):
             description="Adjacent Plants have +2 max HP.",
             applies=lambda q: is_adjacent_plant(q.monster),
             apply=lambda max_hp, q: max_hp + 2,
+        )
+
+
+@card(988)
+class WindStruggler(Monster):
+    def iter_modifiers(self, game):
+        if self.zone is not CardZone.BOARD:
+            return
+
+        yield IntModifier(
+            kind=ModKind.DAMAGE,
+            layer=DamageLayer.ADD,
+            source=self,
+            description="All other monsters take +1 DMG",
+            applies=lambda q: (
+                isinstance(q.target, Monster)
+                and q.target is not self
+            ),
+            apply=lambda damage, q: damage + 1,
         )

@@ -227,10 +227,10 @@ class ActionMethods:
             pos=pos,
         )
 
-    def to_hand(self, controller: Any = None, pos: 'int | str | None' = None):
+    def to_hand(self, controller: Any = None, pos: Any = None):
         return self.move_to(CardZone.HAND, controller=controller, pos=pos)
 
-    def to_deck(self, controller: Any = None, pos: 'int | str | None' = None):
+    def to_deck(self, controller: Any = None, pos: Any = None):
         return self.move_to(CardZone.DECK, controller=controller, pos=pos)
 
     def summon(

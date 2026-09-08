@@ -64,8 +64,8 @@ class ArcaneScepter(Artifact):
 
 
 @artifact(18)
-class Veteran(Artifact):
-    name = "Veteran"
+class PowerBand(Artifact):
+    name = "Power Band"
     rarity = ArtifactRarity.LEGENDARY
 
     @on_event(MonsterKilledResult)

@@ -255,7 +255,7 @@ class CrazyBun(Monster):
 
 
 @card(167)
-class Receptionist1(Monster):
+class HandReceptionist(Monster):
     @on_event(EntityDamagedResult)
     def on_entity_damaged(self, res: EntityDamagedResult, game, **kwargs):
         if res.target_id != self.id:
@@ -649,12 +649,12 @@ class LaggyTV(Monster):
 
 @card(560)
 class MomSlime(Monster):
-    @on_event(GoldSpentResult)
-    def on_gold_spent(self, res: GoldSpentResult, game, **kwargs):
+    @on_event(SpellCastResult)
+    def on_spell_cast(self, res: SpellCastResult, game, **kwargs):
         if res.player_id != self.controller_id:
             return None
 
-        if res.reason != 'play_spell':
+        if res.card.cost < 1:
             return None
 
         return GENERATE_CARD("Kid Slime").summon()
@@ -690,12 +690,12 @@ class GlowingShroom(Monster):
         right=NO_EFFECT
     )
 
-    @on_event(GoldSpentResult)
-    def on_gold_spent(self, res: GoldSpentResult, game, **kwargs):
+    @on_event(SpellCastResult)
+    def on_spell_cast(self, res: SpellCastResult, game, **kwargs):
         if res.player_id != self.controller_id:
             return None
 
-        if res.reason != 'play_spell':
+        if res.card.cost < 1:
             return None
 
         return SELF.buff(attack=+1)

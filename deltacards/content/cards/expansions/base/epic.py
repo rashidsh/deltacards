@@ -130,7 +130,7 @@ class Innkeeper(Monster):
 
 
 @card(218)
-class Receptionist3(Monster):
+class FishReceptionist(Monster):
     magic = ((OPPONENT_HAND & IS_MONSTER) >> RANDOM(1)).summon(controller=OPPONENT)
 
 

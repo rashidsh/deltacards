@@ -307,8 +307,6 @@ class TinyBookshelf(Monster):
 
 @card(600)
 class BagOGoodies(Monster):
-    generated_card: Var[Card] = Var(Card)
-
     magic = YOU.choose(
         DISCOVER(
             IS_SPELL,
@@ -326,11 +324,7 @@ class BagOGoodies(Monster):
         >> CHOICE_SELECTED.to_hand()
     )
 
-    shock = (
-        SetVar(var=generated_card, value=GENERATE_CARD("Gemstone"))
-        >> generated_card.set_stats(cost=0)
-        >> generated_card.to_hand()
-    )
+    shock = GENERATE_CARD("Gemstone").to_hand()
 
 
 @card(618)
@@ -516,20 +510,15 @@ class CyberTree(Monster):
 
 @card(662)
 class EggplantTrashbag(Monster):
-    generated_card: Var[Card] = Var(Card)
-
     magic = YOU.choose(
         DISCOVER(
             IS_SPELL,
-            (RARITY == BASE),
-            n=4
+            RARITY == BASE,
+            n=4,
         )
     ).to(
-        SetVar(var=generated_card, value=CHOICE_SELECTED)
-        >> SELF.schedule_delay_effect()
+        CHOICE_SELECTED.to_hand()
     )
-
-    delay = generated_card.to_hand()
 
 
 @card(663)
@@ -593,7 +582,6 @@ class Cauldron(Monster):
 
     shock = (
         SetVar(var=generated_card, value=GENERATE_CARD("Spincake"))
-        >> generated_card.set_base_stats(cost=1, attack=1, hp=1)
         >> generated_card.add_keyword(HASTE)
         >> generated_card.buff(
             cost=TRIGGER_CARD.cost // 2,
@@ -784,10 +772,10 @@ class Crossganikk(Monster):
 class Mizzle(Monster):
     healed_monster: Var[TargetSelector] = Var(TargetSelector)
 
-    turn_end = Check(ALLY_MONSTERS & DAMAGED).to(
+    turn_end = Check(ALLIES & DAMAGED).to(
         SetVar(
             var=healed_monster,
-            value=(ALLY_MONSTERS & DAMAGED) >> MIN(HP),
+            value=(ALLIES & DAMAGED) >> MIN(HP),
         )
         >> healed_monster.heal(2)
         >> Check(healed_monster.hp == healed_monster.max_hp).to(
@@ -876,24 +864,32 @@ class Terakota(Monster):
 
 @card(976)
 class Leafling(Monster):
-    generated_cards: Var[TargetSelector] = Var(TargetSelector)
-    generated_card: Var[TargetSelector] = Var(TargetSelector)
+    erased_monsters: Var[TargetSelector] = Var(TargetSelector)
+    generated_card: Var[Card] = Var(Card)
 
     support = Check(
         ATTACKER & (TEMPLATE_NAME != "Green Clover")
     ).to(
         SetVar(
-            var=generated_cards,
-            value=GENERATE_CARD(
-                "Green Clover",
-                count=EMPTY_SLOTS(BOARD)
-            )
+            var=erased_monsters,
+            value=(
+                DUSTPILE
+                & IS_MONSTER
+                & NON_TOKEN
+            )[:2],
         )
-        >> generated_cards.summon()
-        >> ForEach(
-            generated_cards,
-            var=generated_card,
-            effect=generated_card.force_attack(DEFENDER)
+        >> Check(
+            COUNT(erased_monsters) == 2
+        ).to(
+            erased_monsters.erase().to(
+                SetVar(
+                    var=generated_card,
+                    value=GENERATE_CARD("Green Clover")
+                )
+                >> generated_card.summon(attack=2, hp=2).to(
+                    generated_card.force_attack(DEFENDER)
+                )
+            )
         )
     )
 
@@ -904,3 +900,35 @@ class TerakotaArcher(Monster):
 
     magic = TARGET.hit(COUNT(HAND))
     bullseye = GENERATE_CARD("Green Clover").summon(attack=2, hp=3)
+
+
+@card(987)
+class Spikery(Monster):
+    need = (
+        EXISTS(
+            GOLD_SPENT(
+                player=YOU,
+                scope=LAST_TURN_OF(YOU),
+                reason='play_spell'
+            )
+        )
+        & EXISTS(
+            GOLD_SPENT(
+                player=YOU,
+                scope=LAST_TURN_OF(YOU),
+                reason='play_monster'
+            )
+        )
+    )
+
+    magic = GENERATE_CARD("Shield").to_hand() * 3
+
+
+@card(990)
+class Kawkaw(Monster):
+    targets = ALLY_MONSTERS
+
+    magic = (
+        TARGET.buff(attack=+1, hp=+2)
+        >> TARGET.paralyze()
+    )
