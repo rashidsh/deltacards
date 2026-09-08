@@ -301,7 +301,11 @@ class HasArtifactValue(ValueExpr):
         if not isinstance(entity, Player):
             raise TargetingError(f"HAS_ARTIFACT is not available on {type(entity).__name__}")
 
-        return any(artifact.name == self.artifact_name for artifact in entity.artifacts)
+        definition = ctx.game.content.artifact_by_name(self.artifact_name)
+        if definition is None:
+            return False
+
+        return any(type(artifact) is definition for artifact in entity.artifacts)
 
     def __repr__(self) -> str:
         return "HAS_ARTIFACT"

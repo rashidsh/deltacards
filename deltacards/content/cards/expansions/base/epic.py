@@ -451,16 +451,16 @@ class IceE(Monster):
 class StrangeMachine(Monster):
     magic = (
         ENEMY_SLOTS[0].enchant(
-            ENCHANTMENT_BY_NAME('green-tile')
+            ENCHANTMENT_BY_NAME("Green Tile")
         )
         >> ENEMY_SLOTS[1].enchant(
-            ENCHANTMENT_BY_NAME('yellow-tile')
+            ENCHANTMENT_BY_NAME("Yellow Tile")
         )
         >> ENEMY_SLOTS[2].enchant(
-            ENCHANTMENT_BY_NAME('purple-tile')
+            ENCHANTMENT_BY_NAME("Purple Tile")
         )
         >> ENEMY_SLOTS[3].enchant(
-            ENCHANTMENT_BY_NAME('orange-tile')
+            ENCHANTMENT_BY_NAME("Orange Tile")
         )
     )
 
@@ -489,7 +489,7 @@ class WallOfFire(Monster):
         & EMPTY_SLOT
         & UNENCHANTED_SLOT
     ).enchant(
-        ENCHANTMENT_BY_NAME('the-flame')
+        ENCHANTMENT_BY_NAME("The Flame")
     )
 
 
@@ -498,5 +498,5 @@ class FireE(Monster):
     targets = ALLY_SLOTS
 
     magic = TARGET.enchant(
-        ENCHANTMENT_BY_NAME('incinerator')
+        ENCHANTMENT_BY_NAME("Incinerator")
     )

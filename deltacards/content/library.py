@@ -13,6 +13,10 @@ from deltacards.model.enums import (
 from deltacards.model.templates import CardTemplate, MonsterTemplate, SpellTemplate
 
 
+def normalize_content_name(name: str) -> str:
+    return name.strip().casefold()
+
+
 class CardLibrary:
     def __init__(self, templates: Iterable[CardTemplate]):
         by_id = {}
@@ -22,7 +26,7 @@ class CardLibrary:
             if template.id in by_id:
                 raise ValueError(f"Duplicate card ID {template.id}")
 
-            template_name = template.name.lower()
+            template_name = normalize_content_name(template.name)
             if template_name in by_name:
                 raise ValueError(f"Duplicate card name {template.name}")
 
@@ -46,7 +50,7 @@ class CardLibrary:
         return self._by_id[fixed_id]
 
     def get_by_name(self, name: str) -> 'CardTemplate':
-        return self._by_name[name.lower()]
+        return self._by_name[normalize_content_name(name)]
 
     @property
     def templates(self) -> tuple[CardTemplate, ...]:

@@ -645,7 +645,7 @@ class PlagueDoctor(Monster):
     targets = ALLY_SLOTS
 
     magic = TARGET.enchant(
-        ENCHANTMENT_BY_NAME('the-cure')
+        ENCHANTMENT_BY_NAME("The Cure")
     )
 
 

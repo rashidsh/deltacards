@@ -61,12 +61,12 @@ def COUNT(selector: TargetSelector) -> CountValue:
 class SumValue(ValueExpr):
     selector: TargetSelector
     value: ValueExpr
-    default: int = 0
+    default: ValueExpr
 
     def eval(self, ctx: 'ActionContext', entity: Any | None = None, **kwargs) -> int:
         items = self.selector.eval(ctx=ctx, **kwargs)
         if not items:
-            return self.default
+            return self.default.eval(ctx=ctx, entity=entity, **kwargs)
 
         total = 0
         for item in items:
@@ -79,7 +79,11 @@ class SumValue(ValueExpr):
 
 
 def SUM(selector: TargetSelector, value: Any, default: int = 0) -> SumValue:
-    return SumValue(selector=selector, value=to_value(value), default=default)
+    return SumValue(
+        selector=selector,
+        value=to_value(value),
+        default=to_value(default),
+    )
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -87,7 +91,7 @@ class MinMaxValue(ValueExpr):
     mode: str
     selector: TargetSelector
     value: ValueExpr
-    default: Any = None
+    default: ValueExpr | None = None
 
     def eval(self, ctx: 'ActionContext', entity: Any | None = None, **kwargs) -> Any:
         items = self.selector.eval(ctx=ctx, **kwargs)
@@ -95,7 +99,7 @@ class MinMaxValue(ValueExpr):
             if self.default is None:
                 raise TargetingError(f"{self.mode.upper()}VAL({self.selector!r}) got no items")
 
-            return self.default
+            return self.default.eval(ctx=ctx, entity=entity, **kwargs)
 
         values = [
             self.value.eval(ctx=ctx, entity=item, **kwargs)
@@ -110,11 +114,21 @@ class MinMaxValue(ValueExpr):
 
 
 def MINVAL(selector: TargetSelector, value: Any, default: Any = None) -> MinMaxValue:
-    return MinMaxValue(mode='min', selector=selector, value=to_value(value), default=default)
+    return MinMaxValue(
+        mode='min',
+        selector=selector,
+        value=to_value(value),
+        default=None if default is None else to_value(default),
+    )
 
 
 def MAXVAL(selector: TargetSelector, value: Any, default: Any = None) -> MinMaxValue:
-    return MinMaxValue(mode='max', selector=selector, value=to_value(value), default=default)
+    return MinMaxValue(
+        mode='max',
+        selector=selector,
+        value=to_value(value),
+        default=None if default is None else to_value(default),
+    )
 
 
 @dataclass(frozen=True, slots=True, eq=False)

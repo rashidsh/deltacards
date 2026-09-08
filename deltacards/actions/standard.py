@@ -178,6 +178,9 @@ class Heal(Action):
     amount: Arg[int] = Arg()
 
     def execute(self, target: 'Monster | Player', amount: int, *, ctx: ActionContext, **kwargs):
+        if amount <= 0:
+            return ActionOutcome(success=False)
+
         if not isinstance(target, (Monster, Player)):
             return ActionOutcome(success=False)
 

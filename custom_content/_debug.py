@@ -52,7 +52,10 @@ class DebugMenu(Spell):
 @card(
     BASE_ID + 2,
     name="Pick a Blueprint",
-    description="Look at all custom cards. Choose one to add to your hand.",
+    description=(
+        "Look at all custom cards. Choose one to add to your hand. "
+        "Earn {{GOLD}} equal to its {{COST}}."
+    ),
     rarity=CardRarity.TOKEN,
     cost=0,
     image=ExistingImage("Create_a_Machine"),
@@ -62,6 +65,7 @@ class PickABlueprint(Spell):
         CUSTOM_NON_DEBUG_CARD_TEMPLATES >> GENERATE_CARD()
     ).to(
         CHOICE_SELECTED.to_hand()
+        >> YOU.earn_gold(CHOICE_SELECTED.cost)
     )
 
 

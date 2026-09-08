@@ -3,15 +3,33 @@ from types import ModuleType
 from typing import Iterable, Mapping
 
 from deltacards.content.frontend import FrontendContentCatalog
-from deltacards.content.library import CardLibrary
+from deltacards.content.library import CardLibrary, normalize_content_name
 from deltacards.content.registration import ContentRegistration, registrations_from_module
 from deltacards.content.registry import ContentKind, ContentPresentation, ContentRegistry
 from deltacards.model.artifacts import Artifact
 from deltacards.model.cards import Card
 from deltacards.model.enchantments import Enchantment
+from deltacards.engine.limits import RuntimeLimits
 from deltacards.model.enums import Ability
 from deltacards.model.souls import Soul
 from deltacards.model.templates import CardTemplate
+
+
+def _definitions_by_name(
+    definitions: Iterable[type],
+    *,
+    kind: str,
+) -> dict[str, type]:
+    result = {}
+
+    for definition in definitions:
+        name = normalize_content_name(definition.name)
+        if name in result:
+            raise ValueError(f"Duplicate normalized {kind} name {definition.name!r}")
+
+        result[name] = definition
+
+    return result
 
 
 @dataclass(slots=True)
@@ -22,13 +40,23 @@ class ContentCatalog:
     enchantments: Mapping[str, type[Enchantment]]
     souls: Mapping[str, type[Soul]]
 
+    artifacts_by_name: Mapping[str, type[Artifact]]
+    enchantments_by_name: Mapping[str, type[Enchantment]]
+
     presentation: ContentRegistry
     frontend: FrontendContentCatalog
 
     source_cards: list[dict]
+    runtime_limits: RuntimeLimits | None = None
 
     def is_custom(self, kind: ContentKind, content_id: int | str) -> bool:
         return self.presentation.is_custom(kind, content_id)
+
+    def artifact_by_name(self, name: str) -> type[Artifact] | None:
+        return self.artifacts_by_name.get(normalize_content_name(name))
+
+    def enchantment_by_name(self, name: str) -> type[Enchantment] | None:
+        return self.enchantments_by_name.get(normalize_content_name(name))
 
 
 class ContentBuilder:
@@ -56,7 +84,8 @@ class ContentBuilder:
                 presentation.key: presentation
                 for presentation in base.presentation.presentations
             }
-            self._source_cards = base.source_cards
+            self._runtime_limits = base.runtime_limits
+            self._source_cards = list(base.source_cards)
             return
 
         if (card_records is not None) and (card_templates is not None):
@@ -81,6 +110,7 @@ class ContentBuilder:
         self._enchantments: dict[str, type[Enchantment]] = {}
         self._souls: dict[str, type[Soul]] = {}
         self._presentations: dict[tuple[ContentKind, int | str], ContentPresentation] = {}
+        self._runtime_limits: RuntimeLimits | None = None
         self._source_cards = list(source_cards)
 
     def add_module(self, module: ModuleType) -> None:
@@ -89,6 +119,9 @@ class ContentBuilder:
     def add_modules(self, modules: Iterable[ModuleType]) -> None:
         for module in modules:
             self.add_module(module)
+
+    def set_runtime_limits(self, limits: RuntimeLimits | None) -> None:
+        self._runtime_limits = limits
 
     def add_registrations(self, registrations: Iterable[ContentRegistration]) -> None:
         for registration in registrations:
@@ -137,12 +170,17 @@ class ContentBuilder:
 
         template = registration.template
         if template is not None:
+            if template.id != card_id:
+                raise ValueError(
+                    f"Card registration ID {card_id} does not match template ID {template.id}"
+                )
+
             if card_id in self._card_templates:
                 raise ValueError(f"Duplicate card template ID {card_id}")
 
-            normalized_name = template.name.lower()
+            normalized_name = normalize_content_name(template.name)
             if any(
-                existing.name.lower() == normalized_name
+                normalize_content_name(existing.name) == normalized_name
                 for existing in self._card_templates.values()
             ):
                 raise ValueError(f"Duplicate card name {template.name!r}")
@@ -213,6 +251,10 @@ class ContentBuilder:
 
     def finalize(self) -> ContentCatalog:
         cards = CardLibrary(self._card_templates.values())
+        artifacts = dict(self._artifacts)
+        enchantments = dict(self._enchantments)
+        artifact_names = _definitions_by_name(artifacts.values(), kind='Artifact')
+        enchantment_names = _definitions_by_name(enchantments.values(), kind='Enchantment')
 
         presentation = ContentRegistry()
         for item in sorted(
@@ -226,17 +268,20 @@ class ContentBuilder:
         return ContentCatalog(
             cards=cards,
             card_implementations=dict(self._card_implementations),
-            artifacts=dict(self._artifacts),
-            enchantments=dict(self._enchantments),
+            artifacts=artifacts,
+            enchantments=enchantments,
             souls=dict(self._souls),
+            artifacts_by_name=artifact_names,
+            enchantments_by_name=enchantment_names,
             presentation=presentation,
             frontend=FrontendContentCatalog.build(
                 source_cards=self._source_cards,
                 cards=cards,
-                artifacts=self._artifacts,
-                enchantments=self._enchantments,
+                artifacts=artifacts,
+                enchantments=enchantments,
                 souls=self._souls,
                 presentation=presentation,
             ),
             source_cards=list(self._source_cards),
+            runtime_limits=self._runtime_limits,
         )

@@ -429,11 +429,11 @@ class ArtifactByNameSelector(TargetSelector):
     name: str
 
     def eval(self, ctx: 'ActionContext', **kwargs) -> list[Any]:
-        return [
-            artifact
-            for artifact in ctx.game.content.artifacts.values()
-            if artifact.name == self.name
-        ]
+        artifact = ctx.game.content.artifact_by_name(self.name)
+        if artifact is None:
+            return []
+
+        return [artifact]
 
     def __repr__(self) -> str:
         return f"ARTIFACT_BY_NAME({self.name!r})"
@@ -453,7 +453,11 @@ class PlayerArtifactSelector(TargetSelector):
         if player is None:
             return []
 
-        return [artifact for artifact in player.artifacts if artifact.name == self.name]
+        definition = ctx.game.content.artifact_by_name(self.name)
+        if definition is None:
+            return []
+
+        return [artifact for artifact in player.artifacts if type(artifact) is definition]
 
     def __repr__(self) -> str:
         return f"ARTIFACT_OF_PLAYER({self.player!r}, name={self.name})"
@@ -524,7 +528,7 @@ class SlotOfSelector(TargetSelector):
         return result
 
     def __repr__(self) -> str:
-        return f"SLOT_OF({self.target!r})"
+        return f"SLOT_OF({self.inner!r})"
 
 
 def SLOT_OF(target: Any) -> SlotOfSelector:
@@ -575,7 +579,7 @@ class EnchantmentByNameSelector(TargetSelector):
     name: str
 
     def eval(self, ctx: 'ActionContext', **kwargs) -> list[Any]:
-        enchantment = ctx.game.content.enchantments.get(self.name)
+        enchantment = ctx.game.content.enchantment_by_name(self.name)
         if enchantment is None:
             return []
 

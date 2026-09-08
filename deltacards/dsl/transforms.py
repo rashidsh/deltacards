@@ -312,12 +312,12 @@ def GENERATE_CARD(
     spec = None,
     *,
     controller: TargetSelector | None = None,
-    creator: TargetSelector | None = None,
+    creator: TargetSelector | _MISSING = _MISSING,
     count: int | ValueExpr = 1,
 ):
     transform = GenerateCardsTransform(
         controller=YOU if controller is None else controller,
-        creator=SELF if creator is None else creator,
+        creator=SELF if creator is _MISSING else creator,
         count=to_value(count),
     )
 

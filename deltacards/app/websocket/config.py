@@ -71,6 +71,9 @@ class ServerConfig:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
 
+    public_server: bool = False
+    allowed_origins: tuple[str, ...] = ('https://undercards.net',)
+
     assets: AssetConfig = field(default_factory=AssetConfig)
     presentation: PresentationConfig = field(default_factory=PresentationConfig)
 
@@ -78,5 +81,8 @@ class ServerConfig:
     bot_deck_name: str | None = None
 
     game_seed_base: int = 0
-    max_message_size: int = 1024 * 1024
+    max_message_size: int = 4 * 1024
+    max_content_request_size: int = 1 * 1024 * 1024
+    scripted_match_lifetime_seconds: int = 60 * 60
+    max_resolution_steps_per_command: int = 1_000
     battle_log_limit: int = 250

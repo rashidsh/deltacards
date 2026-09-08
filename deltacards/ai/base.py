@@ -26,16 +26,46 @@ class AIGameController:
         *,
         max_ai_inputs: int = 1_000,
         step_listener: StepListener | None = None,
+        step_limit: int | None = None,
+        terminate_on_step_limit: bool = False,
     ) -> EngineUpdate:
         all_results = []
         all_log_records = []
+        total_steps = 0
+        remaining_steps = step_limit
+
+        def terminate(code: str) -> EngineUpdate:
+            self.runner.game.terminate_for_resource_limit(code)
+            return EngineUpdate(
+                results=all_results,
+                pending=(),
+                game_over=True,
+                log_records=all_log_records,
+                steps=total_steps,
+            )
 
         for _ in range(max_ai_inputs):
+            if remaining_steps is not None and remaining_steps <= 0:
+                if terminate_on_step_limit:
+                    return terminate('resolution_steps')
+
+                raise RuntimeError("Step limit reached (possible infinite loop).")
+
             update = self.runner.resolve_until_blocked(
+                step_limit=(
+                    self.runner.MAX_STEPS
+                    if remaining_steps is None
+                    else remaining_steps
+                ),
                 step_listener=step_listener,
+                terminate_on_step_limit=terminate_on_step_limit,
             )
             all_results.extend(update.results)
             all_log_records.extend(update.log_records)
+            total_steps += update.steps
+
+            if remaining_steps is not None:
+                remaining_steps -= update.steps
 
             if (
                 update.game_over
@@ -49,6 +79,7 @@ class AIGameController:
                     pending=update.pending,
                     game_over=update.game_over,
                     log_records=all_log_records,
+                    steps=total_steps,
                 )
 
             for request in update.pending:
@@ -61,5 +92,8 @@ class AIGameController:
                         "AI produced a response rejected by runner: "
                         f"{reason}; request={request!r}; response={response!r}"
                     )
+
+        if terminate_on_step_limit:
+            return terminate('ai_inputs')
 
         raise RuntimeError("AI input limit reached (possible infinite loop).")

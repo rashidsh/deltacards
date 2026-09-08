@@ -5,7 +5,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from deltacards.actions.results import MonsterSummonedResult, SpellCastResult
-from deltacards.actions.standard import Kill
+from deltacards.actions.standard import Kill, Move, Play
+from deltacards.dsl.selectors import HAND, YOU
+from deltacards.dsl.transforms import GENERATE_CARD
 from deltacards.engine.runner import EngineUpdate
 from deltacards.model.cards import Card, Monster, Spell
 from deltacards.model.enchantments import Enchantment
@@ -134,8 +136,18 @@ class WebSocketSession:
 
     async def run(self) -> None:
         try:
+            expired = False
+            previous = None
+
             async with self.hosted.lock:
-                previous = self.hosted.replace_session(self.player_id, self)
+                if self.hosted.expired:
+                    expired = True
+                else:
+                    previous = self.hosted.replace_session(self.player_id, self)
+
+            if expired:
+                await self.close_expired()
+                return
 
             if (previous is not None) and (previous is not self):
                 await previous.close_replaced()
@@ -253,6 +265,21 @@ class WebSocketSession:
         await self._close(
             4001,
             "Replaced by a newer connection",
+        )
+
+    async def close_expired(self) -> None:
+        self._stopping = True
+
+        try:
+            await self.websocket.send_text(json_text({
+                'action': 'getGameRemoved',
+            }))
+        except SocketClosed:
+            return
+
+        await self._close(
+            4002,
+            "Custom match expired",
         )
 
     async def fail_fatally(
@@ -376,7 +403,7 @@ class WebSocketSession:
     def _choice_source(
         self,
         request: PendingChoiceRequest,
-    ) -> tuple[Card, int | None]:
+    ) -> tuple[Entity, int | None]:
         pending_play = self.hosted.pending_play
 
         if (
@@ -392,11 +419,6 @@ class WebSocketSession:
             )
 
         source = self.hosted.game.entity(request.source_id)
-        if not isinstance(source, (Monster, Spell)):
-            raise UnsupportedFrontendRequestError(
-                f"Choice source {type(source).__name__} cannot be "
-                f"presented by the existing frontend"
-            )
 
         if isinstance(source, Monster):
             return source, source.pos
@@ -496,6 +518,31 @@ class WebSocketSession:
             event = {
                 'action': 'getSpellTemp',
                 'spell': json_text(self.hosted.adapter.views.card_view(source)),
+                **selection_field,
+            }
+
+        else:
+            # workaround to get choices from non-Monster/non-Spell sources to work
+            proxy_template = next(
+                entity
+                for entity in self.hosted.game.entities.values()
+                if (
+                    isinstance(entity, Card)
+                    and entity.controller_id == self.player_id
+                )
+            )
+
+            proxy_view = dict(
+                self.hosted.adapter.views.card_view(proxy_template)
+            )
+
+            proxy_view['id'] = 0
+            proxy_view['fixedId'] = 1
+            proxy_view['typeCard'] = 1
+
+            event = {
+                'action': 'getSpellTemp',
+                'spell': json_text(proxy_view),
                 **selection_field,
             }
 
@@ -639,6 +686,21 @@ class WebSocketSession:
             await self._present_request(request)
 
         if self.hosted.game.game_over:
+            termination_reason = (
+                self.hosted.game.termination_reason
+            )
+
+            if (
+                termination_reason is not None
+                and termination_reason.startswith('resource_limit:')
+            ):
+                await self.send_event(
+                    fatal_error_event(
+                        'deltacards-game-error-resource-limit',
+                    )
+                )
+                return
+
             # Keep the session alive until the browser closes it after
             # handling the queued result event.
             await self.send_event(
@@ -682,6 +744,8 @@ class WebSocketSession:
             'mulligan': self._handle_mulligan,
             'emote': self._handle_emote,
             'surrender': self._handle_surrender,
+            'deltacardsAddCard': self._handle_add_card,
+            'deltacardsDebug': self._handle_debug,
         }
 
         handler = handlers.get(action_name)
@@ -1260,3 +1324,44 @@ class WebSocketSession:
             synchronize=True,
             capture=capture,
         )
+
+    async def _handle_utility_card(
+        self,
+        data: dict,
+        card_name: str,
+    ) -> None:
+        _validate_fields(data, required={'action'})
+
+        request = self._current_request()
+        if not isinstance(request, PendingPlayerActionRequest):
+            await self._reject_generic_action()
+            return
+
+        game = self.hosted.game
+        del game.pending_requests[request.request_id]
+
+        player = game.player(self.player_id)
+        game.enqueue_actions(
+            (
+                Move(
+                    target=GENERATE_CARD(card_name, creator=None),
+                    zone=CardZone.HAND,
+                ).to(
+                    Play(player=YOU, card=HAND[-1])
+                )
+            ),
+            source=player,
+        )
+
+        update, capture = self._advance_with_capture()
+        await self._emit_update(
+            update,
+            synchronize=True,
+            capture=capture,
+        )
+
+    async def _handle_add_card(self, data: dict) -> None:
+        await self._handle_utility_card(data, "Pick a Blueprint")
+
+    async def _handle_debug(self, data: dict) -> None:
+        await self._handle_utility_card(data, "Debug Menu")

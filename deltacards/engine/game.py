@@ -29,6 +29,7 @@ from deltacards.dsl.core import NoTargetsError, TargetSelector
 from deltacards.dsl.vars import Var
 from deltacards.engine.action_log import ActionLogRecord
 from deltacards.engine.effects import EffectBase, EffectResult, EffectStep, StepResult
+from deltacards.engine.limits import ResourceLimitError
 from deltacards.engine.modifiers import DamageQuery, RulesEngine
 from deltacards.model.cards import Card, CardZone, Monster, Spell, create_card
 from deltacards.model.enchantments import Enchantment
@@ -163,6 +164,7 @@ class Game:
         # Game over state
         self.game_over = False
         self.dead_players: set[PlayerId] = set()
+        self.termination_reason: str | None = None
 
         self.turn = 1
         self.turn_player: Player = None
@@ -245,7 +247,25 @@ class Game:
         return value
 
     def register_entity(self, entity: Entity, entity_id: int):
+        limits = self.content.runtime_limits
+        if (
+            limits is not None
+            and entity_id not in self.entities
+            and len(self.entities) >= limits.max_runtime_entities
+        ):
+            raise ResourceLimitError('runtime_entities')
+
         self.entities[entity_id] = entity
+
+    def terminate(self, reason: str) -> None:
+        self.game_over = True
+        self.termination_reason = reason
+        self.resolution_stack.clear()
+        self.pending_requests.clear()
+        self._step_groups.clear()
+
+    def terminate_for_resource_limit(self, code: str) -> None:
+        self.terminate(f'resource_limit:{code}')
 
     # --------------------
     # Card utilities
@@ -872,6 +892,10 @@ class Game:
         return reactions
 
     def _record_action_results(self, results: Sequence[ActionResult]) -> list[tuple[Entity, Any, ActionResult]]:
+        limits = self.content.runtime_limits
+        if (limits is not None) and (len(self.log) + len(results) > limits.max_recorded_results):
+            raise ResourceLimitError('recorded_results')
+
         handlers: list[tuple[Entity, Any, ActionResult]] = []
         for r in results:
             r.id = self._next_action_result_id
@@ -1223,6 +1247,8 @@ class Game:
                     raise RuntimeError(f"Exception while resolving {effect!r}") from e
 
                 tb = tb.tb_next
+
+            raise
 
         # Custom generators use the same step/resume protocol as `EffectBase`:
         # every `yield` statement represents exactly one step and receives `StepResult` on resume.

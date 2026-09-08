@@ -125,6 +125,9 @@ def custom_card_view(
         result['imageUrl'] = image.url
         result['baseImageUrl'] = image.url
 
+    if image.client_managed:
+        result['clientAssetId'] = image.client_asset_id
+
     if template.soul_id is not None:
         result['soul'] = {
             'name': template.soul_id.upper(),
@@ -158,6 +161,7 @@ def custom_artifact_view(
         'id': artifact_id,
         'name': artifact_type.name,
         'image': image.name,
+        'rarity': artifact_type.rarity.name,
         'legendary': artifact_type.rarity is ArtifactRarity.LEGENDARY,
         'artifactType': 1 if is_quest else 0,
         'custom': 0,
@@ -166,6 +170,9 @@ def custom_artifact_view(
 
     if image.url is not None:
         result['imageUrl'] = image.url
+
+    if image.client_managed:
+        result['clientAssetId'] = image.client_asset_id
 
     if is_quest:
         goal = artifact_type.quest_goal
@@ -198,6 +205,9 @@ def custom_enchantment_view(
         'logUrl': images.log_url,
     }
 
+    if images.background_client_managed:
+        result['clientAssetId'] = images.background_client_asset_id
+
     return result
 
 
@@ -220,6 +230,9 @@ def custom_soul_view(
 
     if image.url is not None:
         result['imageUrl'] = image.url
+
+    if image.client_managed:
+        result['clientAssetId'] = image.client_asset_id
 
     return result
 

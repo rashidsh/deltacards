@@ -233,7 +233,11 @@ class SlotHasEnchantmentPredicate(Predicate):
         if enchantment is None:
             return False
 
-        return type(enchantment) is ctx.game.content.enchantments.get(self.name)
+        definition = ctx.game.content.enchantment_by_name(self.name)
+        if definition is None:
+            return False
+
+        return type(enchantment) is definition
 
     def __repr__(self) -> str:
         return f"SLOT_HAS_ENCHANTMENT({self.name})"

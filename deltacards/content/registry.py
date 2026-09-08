@@ -41,7 +41,12 @@ class CustomImage:
     path: str
 
 
-ImageSpec: TypeAlias = ExistingImage | CustomImage | None
+@dataclass(frozen=True, slots=True)
+class ClientImage:
+    asset_id: str | None
+
+
+ImageSpec: TypeAlias = ExistingImage | CustomImage | ClientImage | None
 
 DEFAULT_ENCHANTMENT_OVERLAY_IMAGE = ExistingImage(name='Incinerator')
 
@@ -77,6 +82,8 @@ class PublishedAsset:
 class FrontendImage:
     name: str
     url: str | None
+    client_asset_id: str | None = None
+    client_managed: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +97,8 @@ class FrontendEnchantmentImages:
     background_url: str
     overlay_url: str
     log_url: str
+    background_client_asset_id: str | None = None
+    background_client_managed: bool = False
 
 
 def _ordinary_asset_name(name: str) -> str:
@@ -305,6 +314,14 @@ class ContentRegistry:
                 url=asset.url,
             )
 
+        if isinstance(image, ClientImage):
+            return FrontendImage(
+                name=_custom_asset_name(kind, content_id, role),
+                url=None,
+                client_asset_id=image.asset_id,
+                client_managed=True,
+            )
+
         raise TypeError(
             f"Unsupported image specification {type(image).__name__}"
         )
@@ -427,6 +444,8 @@ class ContentRegistry:
             background_url=background_url,
             overlay_url=overlay_url,
             log_url=log_url,
+            background_client_asset_id=background.client_asset_id,
+            background_client_managed=background.client_managed,
         )
 
     def localization_keys(

@@ -41,7 +41,7 @@ class XEnchantment(Enchantment):
             return None
 
         return SELF.transform_enchantment(
-            ENCHANTMENT_BY_NAME('o')
+            ENCHANTMENT_BY_NAME("O")
         )
 
 
@@ -57,7 +57,7 @@ class AEnchantment(Enchantment):
             return None
 
         return SELF.transform_enchantment(
-            ENCHANTMENT_BY_NAME('x')
+            ENCHANTMENT_BY_NAME("X")
         )
 
 
@@ -68,7 +68,7 @@ class OEnchantment(Enchantment):
     turn_end = Check(
         COUNT(
             ALLY_SLOTS
-            & SLOT_HAS_ENCHANTMENT('o')
+            & SLOT_HAS_ENCHANTMENT("O")
         ) == 4
     ).to(
         ALLY_ENCHANTMENTS.expire_enchantment()
@@ -80,7 +80,7 @@ class OEnchantment(Enchantment):
             return None
 
         return SELF.transform_enchantment(
-            ENCHANTMENT_BY_NAME('a')
+            ENCHANTMENT_BY_NAME("A")
         )
 
 

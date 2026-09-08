@@ -67,7 +67,7 @@ class Aftermath(Spell):
         (ENEMY_SLOTS & OCCUPIED_SLOT)
         >> RANDOM(2)
     ).enchant(
-        ENCHANTMENT_BY_NAME('scattering-dust')
+        ENCHANTMENT_BY_NAME("Scattering Dust")
     )
 
 
@@ -152,7 +152,7 @@ class PlagueDoctor(Monster):
     targets = ALLY_SLOTS
 
     magic = TARGET.enchant(
-        ENCHANTMENT_BY_NAME('the-cure')
+        ENCHANTMENT_BY_NAME("The Cure")
     )
 
 
@@ -227,7 +227,7 @@ class TheFlame(Enchantment):
 )
 class FireFountain(Monster):
     dust = DEATH_SLOT.enchant(
-        ENCHANTMENT_BY_NAME('the-flame')
+        ENCHANTMENT_BY_NAME("The Flame")
     )
 
 

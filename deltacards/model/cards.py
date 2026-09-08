@@ -441,6 +441,9 @@ class Monster(Card[MonsterTemplate]):
         return self._need_condition is not None
 
     def heal(self, amount: int) -> int:
+        if amount <= 0:
+            return 0
+
         old_hp = self.hp
         self.hp_missing = max(self.hp_missing - amount, 0)
 
