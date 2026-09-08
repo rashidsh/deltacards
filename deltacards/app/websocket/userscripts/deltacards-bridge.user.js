@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         deltacards Bridge
-// @version      0.3.1
+// @version      0.3.2
 // @description  Connects the Undercards web client to a local deltacards engine instance for offline play and testing.
 // @author       rashidsh
 // @homepageURL  https://github.com/rashidsh/deltacards
@@ -2044,11 +2044,11 @@
     'LOOP',
   ];
 
-  const EXPANSIONS = [
+  const EXPANSIONS = new Set([
     'BASE',
     'DELTARUNE',
     'UTY',
-  ];
+  ]);
 
   const TRIBES = new Set([
     'ALL',
@@ -3985,6 +3985,13 @@
       };
     }
 
+    if (value === 'none') {
+      return {
+        kind: 'existing',
+        name: 'Dummy',
+      }
+    }
+
     const url = externalEditorUrl(value, name);
     const prefix = (
       kind === 'artifact'
@@ -4136,9 +4143,15 @@
           maximum: 64,
         }
       );
-      const key = rawPowerName
+      let key = rawPowerName
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '');
+
+      if (key === 'determination') {
+        return;
+      } else if (key === 'cantAttack') {
+        key = 'disarmed';
+      }
 
       const keyword = keywordAliases[key];
       if (keyword !== undefined) {
