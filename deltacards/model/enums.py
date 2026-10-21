@@ -45,6 +45,7 @@ class CardStatusId(Enum):
     PARALYZED = 'paralyzed'
     DODGE = 'dodge'
     LOOP = 'loop'
+    MOLD_SPORE = 'mold_spore'
 
 
 class CardToggleableAbility(Enum):

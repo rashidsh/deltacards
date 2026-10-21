@@ -5,7 +5,6 @@ from deltacards.actions.base import ActionContext
 from deltacards.actions.standard import (
     AdvanceTurn,
     DrawNext,
-    PlayerStartTurnAction,
     ResolveScheduledEffectsAction,
     TriggerAbility,
 )
@@ -18,7 +17,7 @@ from deltacards.model.player import Player
 from deltacards.model.slots import BoardSlot
 
 BucketName = Literal['monster', 'enchantment', 'soul', 'artifact']
-BUCKET_ORDER: tuple[BucketName, ...] = ('monster', 'enchantment', 'soul', 'artifact')
+BUCKET_ORDER: tuple[BucketName, ...] = ('enchantment', 'monster', 'soul', 'artifact')
 
 
 @dataclass(frozen=True, slots=True)

@@ -196,6 +196,9 @@ class AttackResolvedResult(ActionResult):
     damage_to_attacker: int
     damage_to_defender: int
 
+    attacker_excess_damage: int
+    defender_excess_damage: int
+
     attacker_dead: bool
     defender_dead: bool
 

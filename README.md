@@ -40,7 +40,9 @@ python -m pip install -r requirements.txt
 
 ### 4. Download card definitions
 
-Download a [file](https://undercards.net/AllCards) and place it in this project's root folder as `AllCards.json`
+Open [this link](https://undercards.net/card-data/latest.json) in a browser and follow the URL in the `url` field. It should lead to a `.json` file containing a `cards` array.
+
+Download that file and place it in this project's root folder as `AllCards.json`.
 
 ### 5. Play using CLI
 

@@ -276,6 +276,21 @@ class Kill(Action):
                     )
                 )
 
+            mold_spore_counter = target.get_status(CardStatusId.MOLD_SPORE)
+            if mold_spore_counter >= 1:
+                opponent = ctx.game.player(target.controller_id).opponent
+                action_calls.append(
+                    ActionCall(
+                        Summon(
+                            card=ctx.game.create_card(4, controller_id=opponent.id),  # Moldsmal
+                            controller=opponent,
+                            attack=mold_spore_counter,
+                            hp=mold_spore_counter,
+                        ),
+                        source=target,
+                    )
+                )
+
             dust_effect = target.get_ability(Ability.DUST)
             if dust_effect is not None:
                 ctx.game.hold_monster_death_finalization(target)
@@ -1637,6 +1652,8 @@ class CombatDamage(Action):
             ctx.env['combat_result'].update({
                 'damage_to_attacker': 0,
                 'damage_to_defender': res.damage,
+                'attacker_excess_damage': 0,
+                'defender_excess_damage': 0,
                 'attacker_dead': False,
                 'defender_dead': res.killed,
                 'attacker_snapshot': attacker.to_snapshot(),
@@ -1674,6 +1691,8 @@ class CombatDamage(Action):
         ctx.env['combat_result'].update({
             'damage_to_attacker': defender_res.damage,
             'damage_to_defender': attacker_res.damage,
+            'attacker_excess_damage': attacker_res.excess_damage,
+            'defender_excess_damage': defender_res.excess_damage,
             'attacker_dead': defender_res.killed,
             'defender_dead': attacker_res.killed,
             'attacker_snapshot': attacker.to_snapshot(),
@@ -1714,6 +1733,8 @@ class AttackAftermath(Action):
                     defender=ctx.env['combat_result']['defender_snapshot'],
                     damage_to_attacker=ctx.env['combat_result']['damage_to_attacker'],
                     damage_to_defender=ctx.env['combat_result']['damage_to_defender'],
+                    attacker_excess_damage=ctx.env['combat_result']['attacker_excess_damage'],
+                    defender_excess_damage=ctx.env['combat_result']['defender_excess_damage'],
                     attacker_dead=ctx.env['combat_result']['attacker_dead'],
                     defender_dead=ctx.env['combat_result']['defender_dead'],
                 ),

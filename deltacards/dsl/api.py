@@ -272,6 +272,7 @@ FLOWERY_POWER = CardKeyword.FLOWERY_POWER
 PARALYZED = CardStatusId.PARALYZED
 DODGE = CardStatusId.DODGE
 LOOP = CardStatusId.LOOP
+MOLD_SPORE = CardStatusId.MOLD_SPORE
 
 # Card rarities
 BASE = CardRarity.BASE
@@ -305,7 +306,7 @@ __all__ = (
     'SILENCED', 'WANTED', 'DARKSPAWN', 'FLOWERY_POWER',
 
     # Card statuses
-    'PARALYZED', 'DODGE', 'LOOP',
+    'PARALYZED', 'DODGE', 'LOOP', 'MOLD_SPORE',
 
     # Card rarities
     'BASE', 'COMMON', 'RARE', 'EPIC', 'LEGENDARY',

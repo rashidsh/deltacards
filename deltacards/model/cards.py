@@ -219,15 +219,19 @@ class Card(Entity, Generic[TTemplate]):
         self.keywords &= ~keyword
         self._invalidate_rules()
 
-    def set_status(self, status_id: CardStatusId, value: int) -> None:
-        if value == 0:
-            self.remove_status(status_id)
-        else:
-            self.statuses[status_id] = value
-            self._invalidate_rules()
+    def has_status(self, status_id: CardStatusId) -> bool:
+        return status_id in self.statuses
 
     def get_status(self, status_id: CardStatusId) -> int:
         return self.statuses.get(status_id, 0)
+
+    def set_status(self, status_id: CardStatusId, value: int) -> None:
+        if value == 0 and status_id != CardStatusId.MOLD_SPORE:
+            self.remove_status(status_id)
+            return
+
+        self.statuses[status_id] = value
+        self._invalidate_rules()
 
     def remove_status(self, status_id: CardStatusId) -> None:
         self.statuses.pop(status_id, None)
@@ -525,6 +529,9 @@ class Monster(Card[MonsterTemplate]):
 
         if self.keywords & CardKeyword.CANDY:
             self.heal(3)
+
+        if self.has_status(CardStatusId.MOLD_SPORE):
+            self.set_status(CardStatusId.MOLD_SPORE, self.get_status(CardStatusId.MOLD_SPORE) + 1)
 
     def copy_exact_state_from(self, other: 'Card') -> None:
         if not isinstance(other, Monster):

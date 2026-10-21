@@ -12,6 +12,7 @@ NEGATIVE_KEYWORDS = (
 
 NEGATIVE_STATUS_IDS = (
     CardStatusId.PARALYZED,
+    CardStatusId.MOLD_SPORE,
 )
 
 
@@ -32,7 +33,11 @@ def card_has_negative_effects(
     if keywords & NEGATIVE_KEYWORDS:
         return True
 
-    return any(
-        statuses.get(status_id, 0) > 0
-        for status_id in NEGATIVE_STATUS_IDS
+    return (
+        CardStatusId.MOLD_SPORE in statuses
+        or any(
+            statuses.get(status_id, 0) > 0
+            for status_id in NEGATIVE_STATUS_IDS
+            if status_id is not CardStatusId.MOLD_SPORE
+        )
     )

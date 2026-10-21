@@ -34,6 +34,7 @@ STATUS_MAP = {
     'paralyzed': CardStatusId.PARALYZED.name,
     'dodge': CardStatusId.DODGE.name,
     'loop': CardStatusId.LOOP.name,
+    'moldspore': CardStatusId.MOLD_SPORE.name,
 }
 
 TOGGLEABLE_ABILITY_MAP = {
