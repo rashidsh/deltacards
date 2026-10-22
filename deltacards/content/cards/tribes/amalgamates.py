@@ -48,18 +48,25 @@ class ReaperBird(Monster):
 @card(35)
 class LemonBread(Monster):
     played_count: Var[int] = Var(int)
+    enemy_monster: Var[Monster] = Var(Monster)
 
     magic = (
         SetVar(
             var=played_count,
             value=COUNT(
-                CARDS_PLAYED(player=YOU, scope=LAST_TURN_OF(YOU))
+                CARDS_PLAYED(player=YOU, scope=THIS_TURN)
+                & IS_MONSTER
                 & (MOLD | AMALGAMATE)
+            ) + 1
+        )
+        >> ForEach(
+            ENEMY_MONSTERS,
+            var=enemy_monster,
+            effect=enemy_monster.set_status(
+                MOLD_SPORE,
+                value=enemy_monster.status(MOLD_SPORE) + played_count
             )
         )
-        >> Check(played_count >= 1).to(SELF.add_keyword(HASTE))
-        >> Check(played_count >= 2).to(SELF.add_keyword(CANDY))
-        >> Check(played_count >= 3).to(SELF.buff(attack=+2))
     )
 
 

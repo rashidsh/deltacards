@@ -133,16 +133,29 @@ class MettatonNEO(Monster):
 
 @card(214)
 class CasualUndyne(Monster):
-    @on_event(EntityDamagedResult)
-    def on_entity_damaged(self, res: EntityDamagedResult, game, **kwargs):
-        if res.source_id != self.id:
-            return None
+    generated_card: Var[Monster] = Var(Monster)
 
-        target = game.entity(res.target_id)
-        if not isinstance(target, Monster):
-            return None
+    bullseye = Check(EMPTY_SLOTS(BOARD) > 0).to(
+        SetVar(
+            var=generated_card,
+            value=GENERATE_CARD("Spear")
+        )
+        >> generated_card.summon().to(
+            generated_card.force_attack(OPPONENT)
+        )
+    )
 
-        return OPPONENT.hit(res.excess_damage)
+    on_attack_resolved = on_event(
+        AttackResolvedResult,
+        condition=EVENT.matches(
+            EVENT.attacker_id == SELF.id,
+            EVENT.defender_dead,
+            EVENT.attacker_excess_damage > 0,
+        ),
+        effect=ADJACENT(
+            EVENT.select('defender')
+        ).hit(EVENT.attacker_excess_damage)
+    )
 
 
 @card(219)

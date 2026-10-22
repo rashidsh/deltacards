@@ -36,8 +36,8 @@ class Science(Artifact):
 
 
 @artifact(15)
-class Mines(Artifact):
-    name = "Mines"
+class CatBomb(Artifact):
+    name = "Cat Bomb"
     rarity = ArtifactRarity.LEGENDARY
 
     @on_event(SpellCastResult)
@@ -51,7 +51,7 @@ class Mines(Artifact):
         return Check(
             COUNT(SPELLS_CAST(player=YOU) & (TEMPLATE_ID == res.card.template.id)) == 1
         ).to(
-            GENERATE_CARD("Mine", controller=OPPONENT).to_deck()
+            GENERATE_CARD("Explosion", controller=OPPONENT).to_deck()
         )
 
 
@@ -130,6 +130,8 @@ class Seedlings(Artifact):
     name = "Seedlings"
     rarity = ArtifactRarity.LEGENDARY
 
+    generated_card: Var[Card] = Var(Card)
+
     _dustpile_targets = DUSTPILE & IS_MONSTER & NON_TOKEN
 
     turn_end = Check(
@@ -137,7 +139,7 @@ class Seedlings(Artifact):
         & (EMPTY_SLOTS(BOARD) > 0)
     ).to(
         _dustpile_targets[:6].erase()
-        >> GENERATE_CARD("Red Flower").summon()
+        >> GENERATE_CARD("Blue Rose").summon(attack=3, hp=3)
     )
 
 

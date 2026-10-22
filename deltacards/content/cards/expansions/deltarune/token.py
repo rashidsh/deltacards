@@ -2,7 +2,7 @@ from deltacards.dsl.api import *
 
 
 @card(367)
-class Mine(Spell):
+class Explosion(Spell):
     turbo = (
         SELF.erase()
         >> YOU.hit(2)
@@ -220,9 +220,12 @@ class FeatherStorm(Monster):
 class SansMilk(Spell):
     targets = ALL_MONSTERS
 
-    magic = TARGET.set_status(
-        DODGE,
-        value=TARGET.status(DODGE) + 1
+    magic = (
+        TARGET.buff(attack=+1, hp=+1)
+        >> TARGET.set_status(
+            DODGE,
+            value=TARGET.status(DODGE) + 1
+        )
     )
 
 

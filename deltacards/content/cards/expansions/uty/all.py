@@ -335,7 +335,7 @@ class SnakeMiner(Monster):
 
 @card(850)
 class MinesSign(Monster):
-    turn_end = GENERATE_CARD("Mine", controller=OPPONENT).to_deck(controller=OPPONENT)
+    turn_end = GENERATE_CARD("Explosion", controller=OPPONENT).to_deck(controller=OPPONENT)
 
 
 @card(851)
@@ -444,7 +444,13 @@ class HardHat(Spell):
 
 @card(867)
 class OrganPiano(Monster):
-    dust = GENERATE_CARD("Lightning Bolt").to_hand()
+    generated_card: Var[Card] = Var(Card)
+
+    dust = (
+        SetVar(var=generated_card, value=GENERATE_CARD("Lightning Bolt"))
+        >> generated_card.set_stats(cost=1)
+        >> generated_card.to_hand()
+    )
 
 
 @card(868)

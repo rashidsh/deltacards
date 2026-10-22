@@ -3,7 +3,7 @@ from deltacards.dsl.api import *
 
 @card(81)
 class Fortune(Spell):
-    magic = ALL_PLAYERS.earn_gold(1)
+    magic = YOU.earn_gold(2) >> OPPONENT.earn_gold(1)
 
 
 @card(82)

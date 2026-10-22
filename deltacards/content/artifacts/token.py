@@ -262,8 +262,8 @@ class WornDagger(Artifact):
 
 
 @artifact(61)
-class Will(Artifact):
-    name = "Will"
+class BraveAx(Artifact):
+    name = "Brave Ax"
     rarity = ArtifactRarity.TOKEN
 
     game_start = GENERATE_CARD("Recruitment").to_hand()
@@ -503,6 +503,9 @@ class ShatteredRose(Artifact):
 
     @on_event(MonsterKilledResult)
     def on_monster_killed(self, res: MonsterKilledResult, game, **kwargs):
+        if res.turn_player_id != self.controller_id:
+            return None
+
         killer = game.entity(res.killer_id)
         if not isinstance(killer, Monster):
             return None
@@ -515,9 +518,7 @@ class ShatteredRose(Artifact):
 
         return (
             SELF.update_artifact_counter(+1)
-            >> Check(
-                SELF.counter >= SELF.quest_goal
-            ).to(
+            >> Check(SELF.counter >= 5).to(
                 GENERATE_CARD("Ice Crystal").to_hand()
                 >> SELF.update_artifact_counter(-SELF.counter)
             )

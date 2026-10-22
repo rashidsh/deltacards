@@ -104,7 +104,7 @@ class Loren(Monster):
 
 @card(192)
 class BigBomb(Monster):
-    magic = GENERATE_CARD("Mine", controller=OPPONENT).to_deck(controller=OPPONENT) * 3
+    magic = GENERATE_CARD("Explosion", controller=OPPONENT).to_deck(controller=OPPONENT) * 3
 
 
 @card(201)
@@ -221,22 +221,6 @@ class DateAlphys(Monster):
 
 @card(526)
 class PlatedPipe(Monster):
-    def iter_modifiers(self, game):
-        if self.zone is not CardZone.BOARD:
-            return
-
-        yield IntModifier(
-            kind=ModKind.DAMAGE,
-            layer=DamageLayer.ADD,
-            source=self,
-            description="Takes 1 less DMG during the enemy turn",
-            applies=lambda q: (
-                q.target is self
-                and game.turn_player.id != self.controller_id
-            ),
-            apply=lambda damage, q: damage - 1,
-        )
-
     @on_event(EntityDamagedResult)
     def on_entity_damaged(self, res: EntityDamagedResult, game, **kwargs):
         if res.target_id != self.id:

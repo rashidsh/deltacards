@@ -21,7 +21,7 @@ class RedSnail(Monster):
 
 @card(492)
 class BurningSnail(Monster):
-    magic = SELF.buff(attack=COUNT(ALLY_MONSTERS & SNAIL & ~SELF))
+    magic = SELF.buff(attack=COUNT(ADJACENT(SELF) & SNAIL))
 
 
 @card(496)

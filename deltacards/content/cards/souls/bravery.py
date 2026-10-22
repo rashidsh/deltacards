@@ -87,13 +87,10 @@ class Overheat(Spell):
 @card(255)
 class Overgrowth(Spell):
     magic = (
-        (
-            (BOARD | HAND | DECK)
-            & IS_MONSTER
-            & GENERATED
-        ).buff(attack=+1, hp=+1)
-        >> YOU.draw_next()
-    )
+        (BOARD | HAND | DECK)
+        & IS_MONSTER
+        & GENERATED
+    ).buff(attack=+1, hp=+1)
 
 
 @card(452)

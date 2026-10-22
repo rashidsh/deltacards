@@ -118,8 +118,8 @@ class SpikeBand(Artifact):
 
 
 @artifact(19)
-class Spy(Artifact):
-    name = "Spy"
+class InsiderInfo(Artifact):
+    name = "Insider Info"
     rarity = ArtifactRarity.COMMON
 
     turn_start = Check(YOU.turn % 3 == 0).to(
@@ -265,7 +265,7 @@ class BlueRibbon(Artifact):
 @artifact(53)
 class Glamburger(Artifact):
     name = "Glamburger"
-    rarity = ArtifactRarity.COMMON
+    rarity = ArtifactRarity.BASE
 
     turn_start = Check(
         (YOU.turn == 4)
@@ -296,13 +296,13 @@ class GenerousGifts(Artifact):
 
         return (
             SELF.update_artifact_counter(+1)
-            >> Check((SELF.counter % 5) == 0).to(
+            >> Check((SELF.counter % 4) == 0).to(
                 Check(EMPTY_SLOTS(BOARD) > 0).to(
                     SetVar(var=GenerousGifts.gift, value=GENERATE_CARD("Gift"))
                     >> GenerousGifts.gift.summon().to(
                         GenerousGifts.gift.buff(
-                            attack=SELF.counter // 5,
-                            hp=SELF.counter // 5,
+                            attack=SELF.counter // 4,
+                            hp=SELF.counter // 4,
                         )
                     )
                 )
@@ -326,7 +326,7 @@ class ElectroGuitar(Artifact):
     rarity = ArtifactRarity.COMMON
 
     turn_start = Check(SELF.counter >= 4).to(
-        SELF.update_artifact_counter(-4)
+        SELF.update_artifact_counter(-3)
         >> GENERATE_CARD("Rock Chord").to_hand()
     )
 
@@ -370,13 +370,11 @@ class SusiesApron(Artifact):
     name = "Susie's Apron"
     rarity = ArtifactRarity.COMMON
 
-    turn_end = Check(
-        (YOU.turn % 4) == 0
-    ).to(
+    turn_end = Check(YOU.turn % 3 == 0).to(
         (
             (ENEMY_SLOTS & EMPTY_SLOT)
-            >> RANDOM(2)
+            >> RANDOM(1)
         ).enchant(
-            ENCHANTMENT_BY_NAME('the-flame')
+            ENCHANTMENT_BY_NAME("The Flame")
         )
     )

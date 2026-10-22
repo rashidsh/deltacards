@@ -752,7 +752,7 @@ class TallBloxer(Monster):
 
 @card(952)
 class MissMizzle(Monster):
-    _effect = GENERATE_CARD("Mizzle").to_hand()
+    _effect = GENERATE_CARD("Mizzle").summon(attack=1, hp=1)
 
     magic = _effect
     dust = _effect

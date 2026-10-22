@@ -397,7 +397,12 @@ class Coffin(Monster):
 
 @card(216)
 class FireTrap(Monster):
-    turn_end = OPPONENT.hit(SELF.age)
+    turn_start = (
+        (ENEMY_SLOTS & EMPTY_SLOT)
+        >> RANDOM(1)
+    ).enchant(
+        ENCHANTMENT_BY_NAME("The Flame")
+    )
 
 
 @card(220)

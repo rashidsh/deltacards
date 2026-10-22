@@ -291,7 +291,7 @@ class BlowingRabbick(Monster):
         hp_buff = self.buffs.max_hp
 
         return SELF.to_hand().to(
-            SELF.buff(attack=attack_buff + 1, hp=hp_buff + 1)
+            SELF.buff(attack=attack_buff + 2, hp=hp_buff + 1)
         )
 
 
@@ -633,13 +633,10 @@ class FlyingHeads(Monster):
 class SpamtonPoster(Monster):
     magic = YOU.draw((DECK & IS_SPELL).first())
 
-    shock = For(
-        TRIGGER_CARD.cost,
-        GENERATE_CARD(
-            "Hyperlink Blocked",
-            controller=OPPONENT
-        ).to_deck(controller=OPPONENT)
-    )
+    shock = GENERATE_CARD(
+        "Hyperlink Blocked",
+        controller=OPPONENT
+    ).to_deck(controller=OPPONENT)
 
 
 @card(756)
@@ -850,7 +847,7 @@ class Floradinn(Monster):
 
 @card(968)
 class CherryTree(Monster):
-    turn_start = SELF.buff(hp=+2)
+    turn_start = YOU.buff(hp=+3)
 
 
 @card(972)
@@ -926,9 +923,9 @@ class Spikery(Monster):
 
 @card(990)
 class Kawkaw(Monster):
-    targets = ALLY_MONSTERS
+    targets = ALL_MONSTERS
 
     magic = (
-        TARGET.buff(attack=+1, hp=+2)
+        TARGET.buff(attack=+1, hp=+3)
         >> TARGET.paralyze()
     )

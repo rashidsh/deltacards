@@ -165,6 +165,7 @@ class HoodedRalsei(Monster):
 class TeacherToriel(Monster):
     magic = YOU.choose(OPPONENT_HAND).to(
         CHOICE_SELECTED.to_deck()
+        >> CHOICE_SELECTED.buff(cost=+1)
     )
 
 
@@ -480,10 +481,7 @@ class Yellow(Monster):
     generated_card: Var[Card] = Var(Card)
 
     need = COUNT(
-        MONSTERS_DIED(
-            scope=THIS_TURN,
-            killer_controller=YOU
-        )
+        MONSTERS_DIED(scope=THIS_TURN)
          & ~IS_COMBAT_KILL
     ) >= 2
 

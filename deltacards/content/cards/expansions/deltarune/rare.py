@@ -86,7 +86,7 @@ class Snowy(Monster):
     hit_result: Var[StepResult] = Var(StepResult)
 
     magic = (
-        TARGET.hit(2).store_result(hit_result).to(
+        TARGET.hit(1).store_result(hit_result).to(
             Check(hit_result.killed).to(
                 (
                     (CARD_LIBRARY & IS_SPELL & NON_TOKEN & (COST == hit_result.target.cost))
@@ -421,7 +421,7 @@ class Pizzasimp(Monster):
 class Alterman(Monster):
     targets = ALLY_MONSTERS & ~SELF
 
-    magic = TARGET.erase().to(
+    magic = TARGET.silence() >> TARGET.kill().to(
         SELF.buff(hp=+3)
     )
 
@@ -437,15 +437,7 @@ class CarnivalTent(Monster):
 
 @card(646)
 class Glitch(Monster):
-    magic = (
-        Switch(
-            left=SELF.buff(attack=+2),
-            right=SELF.buff(hp=+2)
-        )
-        >> Check((SELF.pos == 1) | (SELF.pos == 2)).to(
-            SELF.swap_stats()
-        )
-    )
+    turn_end = SELF.remove_keyword(INVULNERABLE)
 
 
 @card(649)
@@ -790,7 +782,7 @@ class Wicabel(Monster):
 @card(922)
 class CoolerCooler(Monster):
     shock = Check(EMPTY_SLOTS(BOARD) >= 1).to(
-        SELF.hit(1)
+        SELF.hit(2)
         >> GENERATE_CARD("Mizzle").summon()
     )
 

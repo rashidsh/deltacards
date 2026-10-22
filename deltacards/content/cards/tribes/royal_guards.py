@@ -161,3 +161,26 @@ class Martlet(Monster):
         SELF.set_base_stats(cost=SELF.base.cost - 1)
         >> SELF.to_hand()
     )
+
+
+@card(1000)
+class ArmoredUndyne(Monster):
+    generated_card: Var[Monster] = Var(Monster)
+
+    magic = For(
+        COUNT_DISTINCT(
+            DUSTPILE
+            & IS_MONSTER
+            & NON_GENERATED
+            & HAS_TRIBE(Tribe.ROYAL_GUARD)
+        ),
+        Check(EMPTY_SLOTS(BOARD) > 0).to(
+            SetVar(
+                var=generated_card,
+                value=GENERATE_CARD("Spear")
+            )
+            >> generated_card.summon().to(
+                generated_card.force_attack(ENEMIES >> MIN(HP))
+            )
+        ),
+    )

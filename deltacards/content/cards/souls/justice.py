@@ -145,24 +145,10 @@ class ZapCannon(Spell):
 
 @card(487)
 class RoyalJustice(Spell):
-    generated_cards: Var[TargetSelector] = Var(TargetSelector)
+    targets = ALL_MONSTERS
 
-    magic = (
-        SetVar(
-            var=generated_cards,
-            value=(
-                (
-                    SPELLS_CAST(player=YOU)
-                    & NON_TOKEN
-                    & OF_SOUL('justice')
-                )
-                >> AS_TEMPLATES(distinct=True)
-                >> GENERATE_CARD()
-            )
-        )
-        >> generated_cards.buff(cost=-1)
-        >> generated_cards.to_hand()
-    )
+    magic = TARGET.hit(1)
+    bullseye = YOU.earn_gold(1)
 
 
 @card(700)

@@ -6,13 +6,13 @@ DOG = HAS_TRIBE(Tribe.DOG)
 
 @card(40)
 class AnnoyingDog(Monster):
-    magic = SELF.schedule_delay_effect()
-
-    delay = (
+    magic = (
         GENERATE_CARD("Dog Residue").to_hand()
-        >> Check(SELF.buffs.attack > 0).to(
-            GENERATE_CARD("Dog Residue").to_hand()
-        )
+        >> SELF.schedule_delay_effect()
+    )
+
+    delay = Check(SELF.buffs.attack > 0).to(
+        GENERATE_CARD("Dog Residue").to_hand()
     )
 
 
