@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         deltacards Bridge
-// @version      0.3.4
+// @version      0.3.5
 // @description  Connects the Undercards web client to a local deltacards engine instance for offline play and testing.
 // @author       rashidsh
 // @homepageURL  https://github.com/rashidsh/deltacards
@@ -1892,8 +1892,8 @@
 
   const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-  const EXTERNAL_EDITOR_ORIGIN = 'https://sernon158.github.io/';
   const EXTERNAL_EDITOR_URL = 'https://sernon158.github.io/uc-editor/';
+  const EXTERNAL_EDITOR_ORIGIN = new URL(EXTERNAL_EDITOR_URL).origin;
 
   const BLOCKLY_BASE_URL = 'https://unpkg.com/blockly@13.2.1';
   const BLOCKLY_PLUGIN_URLS = [
@@ -3804,16 +3804,14 @@
     let url;
 
     try {
-      url = new URL(value, EXTERNAL_EDITOR_ORIGIN);
+      url = new URL(value, EXTERNAL_EDITOR_URL);
     } catch {
       throw new Error(`${name} contains an invalid path.`);
     }
 
-    const editorOrigin = new URL(EXTERNAL_EDITOR_ORIGIN).origin;
-
     if (
       url.protocol !== 'https:'
-      || url.origin !== editorOrigin
+      || url.origin !== EXTERNAL_EDITOR_ORIGIN
     ) {
       throw new Error(
         `${name} must identify an existing asset.`
@@ -3910,10 +3908,11 @@
     }
 
     const url = externalEditorUrl(value, name);
-    const prefix = (
+    const assetDirectory = new URL(
       kind === 'artifact'
-        ? '/images/artifacts/'
-        : '/images/cards/'
+        ? 'images/artifacts/'
+        : 'images/cards/',
+      EXTERNAL_EDITOR_URL
     );
 
     let pathname;
@@ -3924,13 +3923,15 @@
       throw new Error(`${name} contains an invalid filename.`);
     }
 
-    if (!pathname.startsWith(prefix)) {
+    const allowedPrefix = decodeURIComponent(assetDirectory.pathname);
+
+    if (!pathname.startsWith(allowedPrefix)) {
       throw new Error(
         `${name} does not identify a supported existing image.`
       );
     }
 
-    const filename = pathname.slice(prefix.length);
+    const filename = pathname.slice(allowedPrefix.length);
     const match = filename.match(
       /^([A-Za-z0-9][A-Za-z0-9_-]{0,127})\.png$/i
     );
@@ -4135,6 +4136,10 @@
     }
   }
 
+  function externalImportKey(namespace, name) {
+    return `${namespace}:${name.toLowerCase()}`;
+  }
+
   function normalizeExternalCard(card, index) {
     if (
       !card
@@ -4142,19 +4147,6 @@
       || Array.isArray(card)
     ) {
       throw new Error(`cards[${index}] must be an object.`);
-    }
-
-    if (
-      typeof card.id !== 'string'
-      && typeof card.id !== 'number'
-    ) {
-      throw new Error(`cards[${index}].id is required.`);
-    }
-
-    const externalId = String(card.id).trim();
-
-    if (externalId.length === 0) {
-      throw new Error(`cards[${index}].id cannot be empty.`);
     }
 
     const kinds = {
@@ -4214,7 +4206,7 @@
       }
 
       return {
-        importKey: `card:${externalId}`,
+        importKey: externalImportKey('card', name),
         kind,
         image,
         definition: {
@@ -4276,7 +4268,7 @@
       }
 
       return {
-        importKey: `card:${externalId}`,
+        importKey: externalImportKey('card', name),
         kind,
         image,
         definition: {
@@ -4302,7 +4294,7 @@
     );
 
     return {
-      importKey: `enchantment:${externalId}`,
+      importKey: externalImportKey('enchantment', name),
       kind,
       image,
       definition: {
@@ -4349,7 +4341,7 @@
     }
 
     return {
-      importKey: `artifact:${name.toLowerCase()}`,
+      importKey: externalImportKey('artifact', name),
       kind: 'artifact',
       image: normalizeExternalImage(
         artifact.image,
