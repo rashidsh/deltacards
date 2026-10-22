@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         deltacards Bridge
-// @version      0.3.3
+// @version      0.3.4
 // @description  Connects the Undercards web client to a local deltacards engine instance for offline play and testing.
 // @author       rashidsh
 // @homepageURL  https://github.com/rashidsh/deltacards
@@ -181,8 +181,6 @@
 
   let activeBrowserContentPreview = null;
 
-  let cardsVersionWasTransformed = false;
-
   function getLocalGameID() {
     if (normalizedPathname() !== '/Spectate') {
       return null;
@@ -294,11 +292,11 @@
       })
     : Promise.resolve();
 
-  let resolveCustomContentReady = () => {};
+  let resolveCardCatalogueReady = () => {};
 
-  const customContentReady = interceptionEnabled
+  const cardCatalogueReady = interceptionEnabled
     ? new Promise((resolve) => {
-        resolveCustomContentReady = resolve;
+        resolveCardCatalogueReady = resolve;
       })
     : Promise.resolve();
 
@@ -314,7 +312,7 @@
   let customIdsByKind = new Map();
   let clientAssetUrls = new Map();
 
-  function setCustomContent(value) {
+  async function setCustomContent(value) {
     value = (
       value && typeof value === 'object'
     ) ? value : {};
@@ -347,14 +345,10 @@
       );
     }
 
-    prepareCustomContentAssets(customContent)
-      .then((assetUrls) => {
-        clientAssetUrls = assetUrls;
-        rebuildAssetReplacements();
-        ensureCustomContentObserver();
-        refreshCustomContent(document);
-        resolveCustomContentReady();
-      });
+    clientAssetUrls = await prepareCustomContentAssets(customContent);
+    rebuildAssetReplacements();
+    ensureCustomContentObserver();
+    refreshCustomContent(document);
   }
 
   async function prepareCustomContentAssets(content) {
@@ -857,83 +851,6 @@
 
   /* HTTP rewrites */
 
-  function classifyRequest(method, rawUrl) {
-    const sourceUrl = new URL(rawUrl, location.href);
-
-    if (sourceUrl.origin !== location.origin) {
-      return {
-        kind: null,
-        url: rawUrl,
-      };
-    }
-
-    if (
-      method === 'GET'
-      && sourceUrl.pathname === '/Version'
-      && sourceUrl.searchParams.get('type') === 'cards'
-    ) {
-      let localUrl;
-
-      if (activeCustomLaunch !== null) {
-        localUrl = serverHttpUrl(
-          `/v1/games/${activeCustomLaunch.gameId}/cards-version`
-        );
-      } else {
-        localUrl = serverHttpUrl('/cards-version/');
-        localUrl.searchParams.set('type', 'cards');
-      }
-
-      return {
-        kind: 'cards-version',
-        url: localUrl.href,
-        authorization: (
-          activeCustomLaunch === null
-            ? null
-            : `Bearer ${activeCustomLaunch.playerToken}`
-        ),
-      };
-    }
-
-    if (
-      method === 'GET'
-      && sourceUrl.pathname === '/AllCards'
-    ) {
-      let localUrl;
-
-      if (activeCustomLaunch !== null) {
-        localUrl = serverHttpUrl(
-          `/v1/games/${activeCustomLaunch.gameId}/cards`
-        );
-      } else {
-        localUrl = serverHttpUrl('/cards/');
-      }
-
-      return {
-        kind: 'cards',
-        url: localUrl.href,
-        authorization: (
-          activeCustomLaunch === null
-            ? null
-            : `Bearer ${activeCustomLaunch.playerToken}`
-        ),
-      };
-    }
-
-    if (sourceUrl.pathname === '/DecksConfig') {
-      return {
-        kind: 'decks-config',
-        url: rawUrl,
-        authorization: null,
-      };
-    }
-
-    return {
-      kind: null,
-      url: rawUrl,
-      authorization: null,
-    };
-  }
-
   function appendUniqueById(target, additions) {
     const ids = new Set(
       target.map((entry) => Number(entry.id))
@@ -959,54 +876,6 @@
         ? preview
         : null
     );
-  }
-
-  function transformCardsVersionResponse(data) {
-    cardsVersionWasTransformed = true;
-
-    const preview = previewForBaseVersion(
-      data.cardsVersion
-    );
-    const result = {
-      ...data,
-    };
-
-    if (preview !== null) {
-      activeBrowserContentPreview = preview;
-      result.cardsVersion = preview.cardsVersion;
-      result.customContent = preview.customContent;
-    } else {
-      activeBrowserContentPreview = null;
-    }
-
-    setCustomContent(result.customContent);
-
-    if (
-      activeBrowserContentPreview !== null
-      && window.translationReady === true
-    ) {
-      queueCustomTranslationApplication();
-    }
-
-    return result;
-  }
-
-  function transformCardsResponse(data) {
-    if (activeBrowserContentPreview === null) {
-      return data;
-    }
-
-    const cards = JSON.parse(data.cards);
-
-    appendUniqueById(
-      cards,
-      activeBrowserContentPreview.customContent.cards || []
-    );
-
-    return {
-      ...data,
-      cards: JSON.stringify(cards),
-    };
   }
 
   function transformDecksConfig(data) {
@@ -1131,47 +1000,32 @@
     OriginalXMLHttpRequest.prototype.open = function (method, url) {
       const args = Array.from(arguments);
       const normalizedMethod = String(method).toUpperCase();
-      const route = classifyRequest(normalizedMethod, url);
-      const asyncValue = args.length >= 3 ? args[2] : true;
+      const requestUrl = new URL(url, location.href);
+
+      const isDecksConfig = (
+        requestUrl.origin === location.origin
+        && requestUrl.pathname === '/DecksConfig'
+      );
 
       xhrMetadata.set(this, {
-        kind: route.kind,
+        kind: isDecksConfig ? 'decks-config' : null,
         originalMethod: normalizedMethod,
-        async: asyncValue,
-
-        // These requests are immediately rewritten to local GET endpoints.
-        dropAuthorRequestHeaders: (
-          route.kind === 'cards-version'
-          || route.kind === 'cards'
-        ),
+        async: args.length >= 3 ? args[2] : true,
 
         // DecksConfig POSTs might later be rewritten to a local GET, so hold
         // their headers until send() determines which request is being made.
         deferredHeaders: (
-          route.kind === 'decks-config'
+          isDecksConfig
           && normalizedMethod === 'POST'
         ) ? [] : null,
       });
 
-      args[1] = route.url;
-      const result = Reflect.apply(originalXhrOpen, this, args);
-
-      if (typeof route.authorization === 'string') {
-        originalXhrSetRequestHeader.call(
-          this,
-          'Authorization',
-          route.authorization
-        );
-      }
-
-      return result;
+      return Reflect.apply(originalXhrOpen, this, args);
     };
 
     OriginalXMLHttpRequest.prototype.setRequestHeader =
       function (name, value) {
         const metadata = xhrMetadata.get(this);
-
-        if (metadata?.dropAuthorRequestHeaders) return;
 
         if (metadata?.deferredHeaders) {
           metadata.deferredHeaders.push([name, value]);
@@ -1254,14 +1108,6 @@
         return localDeckActionResponse(metadata.localDeckAction) || value;
       }
 
-      if (metadata.kind === 'cards-version') {
-        return transformCardsVersionResponse(value);
-      }
-
-      if (metadata.kind === 'cards') {
-        return transformCardsResponse(value);
-      }
-
       if (
         metadata.kind === 'decks-config'
         && metadata.originalMethod === 'GET'
@@ -1290,12 +1136,7 @@
         && metadata.originalMethod === 'GET'
       );
 
-      if (
-        metadata.kind !== 'cards-version'
-        && metadata.kind !== 'cards'
-        && !isDecksConfigGet
-        && !isLocalDeckAction
-      ) {
+      if (!isDecksConfigGet && !isLocalDeckAction) {
         return value;
       }
 
@@ -1351,6 +1192,110 @@
         return transformResponseObject(xhr, value);
       }
     );
+  }
+
+  /* Card catalogue */
+
+  let bridgeCards = null;
+  let bridgeCardsLoading = false;
+
+  const bridgeCardsEvent = new Event('allCardsReady');
+
+  async function fetchContentJson(resource, query = {}) {
+    const path = activeCustomLaunch === null
+      ? `/${resource}/`
+      : `/v1/games/${activeCustomLaunch.gameId}/${resource}`;
+
+    const url = serverHttpUrl(path);
+    url.search = new URLSearchParams(query).toString();
+
+    const headers = {};
+
+    if (activeCustomLaunch !== null) {
+      headers.Authorization = `Bearer ${activeCustomLaunch.playerToken}`;
+    }
+
+    const response = await fetch(url.href, {
+      cache: 'no-store',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `GET ${url.pathname} returned HTTP ${response.status}.`
+      );
+    }
+
+    return response.json();
+  }
+
+  async function initBridgeCards() {
+    if (bridgeCardsLoading || bridgeCards !== null) return;
+
+    bridgeCardsLoading = true;
+
+    try {
+      const catalogue = await fetchContentJson('cards');
+      const cards = catalogue.cards;
+
+      activeBrowserContentPreview = previewForBaseVersion(
+        catalogue.cardsVersion
+      );
+
+      await setCustomContent(
+        activeBrowserContentPreview === null
+          ? catalogue.customContent
+          : activeBrowserContentPreview.customContent
+      );
+
+      if (activeBrowserContentPreview !== null) {
+        appendUniqueById(cards, customContent.cards);
+      }
+
+      /*
+       * Normal translations may already have loaded before the bridge
+       * selected its custom-content metadata and browser preview.
+       */
+      if (window.translationReady === true) {
+        await queueCustomTranslationApplication();
+      }
+
+      bridgeCards = cards;
+      window.allCards = bridgeCards;
+
+      document.dispatchEvent(bridgeCardsEvent);
+      resolveCardCatalogueReady();
+    } catch (error) {
+      console.error(
+        `${PLUGIN_NAME}: Could not load the card catalogue.`,
+        error
+      );
+    } finally {
+      bridgeCardsLoading = false;
+    }
+  }
+
+  function installCardCatalogueLoader() {
+    /*
+     * The original request may have started before this userscript.
+     * Its success callback assigns `allCards` immediately before dispatching
+     * `allCardsReady`. Restore our catalogue and suppress that notification.
+     *
+     * Capture runs before ordinary document listeners, including ordinary
+     * listeners registered before the bridge.
+     */
+    document.addEventListener('allCardsReady', (event) => {
+      if (event === bridgeCardsEvent) return;
+
+      if (bridgeCards !== null) {
+        window.allCards = bridgeCards;
+      }
+
+      event.stopImmediatePropagation();
+    }, true);
+
+    window.initCards = initBridgeCards;
+    window.fetchAllCards = initBridgeCards;
   }
 
   function bufferWebSocketMessagesUntil(socket, readyPromise) {
@@ -1483,21 +1428,14 @@
           activeCustomGameSocket = bufferWebSocketMessagesUntil(
             socket,
             Promise.all([
+              cardCatalogueReady,
               customTranslationsReady,
-              customContentReady,
             ])
           );
 
           socket.addEventListener('close', () => {
             activeCustomGameSocket = null;
           });
-
-          if (!cardsVersionWasTransformed) {
-            console.warn(
-              `${PLUGIN_NAME}: failed to intercept some requests in time; retrying them now...`
-            );
-            window.initCards();
-          }
 
           return activeCustomGameSocket;
         }
@@ -1510,35 +1448,7 @@
   /* Custom translations */
 
   async function fetchCustomTranslations(language) {
-    let url;
-
-    if (activeCustomLaunch !== null) {
-      url = serverHttpUrl(`/v1/games/${activeCustomLaunch.gameId}/translations`);
-    } else {
-      url = serverHttpUrl('/translations/');
-    }
-
-    url.searchParams.set('locale', language);
-
-    const headers = {};
-    if (activeCustomLaunch !== null) {
-      headers.Authorization = `Bearer ${activeCustomLaunch.playerToken}`;
-    }
-
-    const response = await fetch(
-      url.href,
-      {
-        method: 'GET',
-        cache: 'no-store',
-        headers,
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Custom translations returned HTTP ${response.status}.`);
-    }
-
-    const entries = await response.json();
+    const entries = await fetchContentJson('translations', {locale: language});
 
     if (
       activeCustomLaunch === null
@@ -1611,6 +1521,7 @@
   /* Set up interception and hooks */
 
   if (interceptionEnabled) {
+    installCardCatalogueLoader();
     installXhrInterception();
     installWebsocketInterception();
 
@@ -1620,9 +1531,7 @@
     // Reapply after every normal translation load.
     document.addEventListener('translationReady', queueCustomTranslationApplication);
 
-    if (window.translationReady === true) {
-      queueCustomTranslationApplication();
-    }
+    void initBridgeCards();
 
     console.info(`${PLUGIN_NAME}: Set up interception and hooks`);
   }
@@ -1690,9 +1599,11 @@
     const settings = plugin.settings();
 
     underscript.onPage('Spectate', () => {
-      if (isInLocalGame()) {
-        eventManager.once('allCardsReady', () => addCustomGameControls(plugin));
-      }
+      if (!isInLocalGame()) return;
+
+      void cardCatalogueReady.then(() => {
+        addCustomGameControls(plugin);
+      });
     });
 
     settings.add({
@@ -1981,7 +1892,8 @@
 
   const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-  const EXTERNAL_EDITOR_ORIGIN = 'https://uc-editor.vercel.app/';
+  const EXTERNAL_EDITOR_ORIGIN = 'https://sernon158.github.io/';
+  const EXTERNAL_EDITOR_URL = 'https://sernon158.github.io/uc-editor/';
 
   const BLOCKLY_BASE_URL = 'https://unpkg.com/blockly@13.2.1';
   const BLOCKLY_PLUGIN_URLS = [
@@ -4121,6 +4033,7 @@
       paralyzed: 'PARALYZED',
       dodge: 'DODGE',
       loop: 'LOOP',
+      moldspore: 'MOLD_SPORE',
     };
     const keywords = [];
     const statuses = {};
@@ -9036,7 +8949,7 @@
       const editorLink = element('a', {
         text: 'Card editor by Sernon158',
       });
-      editorLink.href = EXTERNAL_EDITOR_ORIGIN;
+      editorLink.href = EXTERNAL_EDITOR_URL;
       editorLink.target = '_blank';
 
       const restoreBackup = actionButton(

@@ -21,7 +21,7 @@ class ScriptedContentLimits:
 
     runtime_limits: RuntimeLimits = field(
         default_factory=lambda: RuntimeLimits(
-            max_runtime_entities=2_000,
+            max_runtime_entities=10_000,
             max_recorded_results=20_000,
         )
     )

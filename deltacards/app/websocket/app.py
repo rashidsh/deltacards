@@ -45,6 +45,16 @@ def json_response(
     )
 
 
+def catalog_response(catalog: ContentCatalog) -> Response:
+    frontend = catalog.frontend
+
+    return json_response({
+        'cardsVersion': frontend.cards_version,
+        'cards': frontend.cards,
+        'customContent': frontend.custom_content_view(),
+    })
+
+
 def deck_error_response(translation_key: str) -> dict:
     return {
         'status': 'error',
@@ -486,21 +496,9 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
             'assignedIds': build.assigned_ids,
         }, status_code=201)
 
-    @app.get('/cards-version/')
-    async def cards_version(request: Request) -> Response:
-        if request.query_params.getlist('type') != ['cards']:
-            return Response(status_code=404)
-
-        return json_response({
-            'cardsVersion': application.frontend_content.cards_version,
-            'customContent': application.frontend_content.custom_content_view(),
-        })
-
     @app.get('/cards/')
     async def cards() -> Response:
-        return json_response({
-            'cards': json_text(application.frontend_content.cards),
-        })
+        return catalog_response(application.catalog)
 
     @app.get('/translations/')
     async def translations(request: Request) -> Response:
@@ -534,21 +532,6 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
 
         return seat[0]
 
-    @app.get('/v1/games/{game_id}/cards-version')
-    async def game_cards_version(
-        game_id: int,
-        request: Request,
-    ) -> Response:
-        hosted = await authorized_game(request, game_id)
-        if hosted is None:
-            return Response(status_code=404)
-
-        frontend = hosted.game.content.frontend
-        return json_response({
-            'cardsVersion': frontend.cards_version,
-            'customContent': frontend.custom_content_view(),
-        })
-
     @app.get('/v1/games/{game_id}/cards')
     async def game_cards(
         game_id: int,
@@ -558,9 +541,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         if hosted is None:
             return Response(status_code=404)
 
-        return json_response({
-            'cards': json_text(hosted.game.content.frontend.cards),
-        })
+        return catalog_response(hosted.game.content)
 
     @app.get('/v1/games/{game_id}/translations')
     async def game_translations(
